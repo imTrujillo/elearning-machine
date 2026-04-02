@@ -35,16 +35,16 @@ public class CourseServiceImpl implements CourseService {
     @Qualifier("wooWebClient")
     private final WebClient wooWebClient;
 
-    // ✅ Caché Redis — TTL definido en application.yml
+    // ✅ CACHE CORREGIDO
     @Override
-    @Cacheable(value = "courses")
+    @Cacheable(value = "courses", key = "'all_' + #pageable.pageNumber + '_' + #pageable.pageSize")
     public Page<CourseResponse> findAll(Pageable pageable) {
         return courseRepository.findByActiveTrue(pageable)
                 .map(this::toResponse);
     }
 
     @Override
-    @Cacheable(value = "courses", key = "#slug + '_' + #pageable.pageNumber")
+    @Cacheable(value = "courses", key = "#slug + '_' + #pageable.pageNumber + '_' + #pageable.pageSize")
     public Page<CourseResponse> findByCategory(String slug, Pageable pageable) {
         return courseRepository.findByCategorySlugAndActiveTrue(slug, pageable)
                 .map(this::toResponse);
@@ -57,12 +57,11 @@ public class CourseServiceImpl implements CourseService {
         return toResponse(course);
     }
 
-    // ✅ Sync desde WordPress + WooCommerce
+    // ✅ SYNC + LIMPIEZA DE CACHE
     @Override
-    @CacheEvict(value = "courses", allEntries = true) // limpia caché al sincronizar
+    @CacheEvict(value = "courses", allEntries = true)
     public List<CourseResponse> syncFromWordpress() {
 
-        // Paso 1 — traer posts de WordPress
         List<WordpressPostDto> posts = wordpressWebClient.get()
                 .uri("/wp-json/wp/v2/posts?per_page=100&_embed")
                 .retrieve()
@@ -72,7 +71,6 @@ public class CourseServiceImpl implements CourseService {
 
         if (posts == null || posts.isEmpty()) return List.of();
 
-        // Paso 2 — traer productos de WooCommerce
         List<WooProductDto> wooProducts = wooWebClient.get()
                 .uri("/wp-json/wc/v3/products?per_page=100")
                 .retrieve()
@@ -80,21 +78,19 @@ public class CourseServiceImpl implements CourseService {
                 .collectList()
                 .block();
 
-        // Paso 3 — indexar wooProducts por nombre para cruzar con posts
         Map<String, WooProductDto> wooByName = wooProducts == null
                 ? Map.of()
                 : wooProducts.stream()
                 .collect(Collectors.toMap(
-                        p -> p.name().toLowerCase(),
+                        p -> p.name() != null ? p.name().toLowerCase() : "",
                         p -> p,
-                        (a, b) -> a  // si hay duplicados, quedarse con el primero
+                        (a, b) -> a
                 ));
 
-        // Paso 4 — guardar o actualizar cada curso
         List<Course> saved = posts.stream().map(post -> {
             Course course = courseRepository
                     .findByWordpressPostId(post.id())
-                    .orElse(new Course());  // actualiza si ya existe
+                    .orElse(new Course());
 
             course.setWordpressPostId(post.id());
             course.setTitle(post.title().rendered());
@@ -103,13 +99,20 @@ public class CourseServiceImpl implements CourseService {
             course.setSlug(post.slug());
             course.setActive(true);
 
-            // Cruzar precio desde WooCommerce por nombre
-            WooProductDto woo = wooByName.get(post.title().rendered().toLowerCase());
+            WooProductDto woo = wooByName.get(
+                    post.title().rendered() != null
+                            ? post.title().rendered().toLowerCase()
+                            : ""
+            );
+
             if (woo != null) {
                 course.setWooProductId(woo.id());
-                course.setPrice(new BigDecimal(woo.regular_price().isEmpty() ? "0" : woo.regular_price()));
 
-                // Asignar categoría si existe en WooCommerce
+                String price = woo.regular_price();
+                course.setPrice(new BigDecimal(
+                        (price == null || price.isEmpty()) ? "0" : price
+                ));
+
                 if (woo.categories() != null && !woo.categories().isEmpty()) {
                     String catSlug = woo.categories().get(0).slug();
                     categoryRepository.findBySlug(catSlug)
@@ -123,6 +126,7 @@ public class CourseServiceImpl implements CourseService {
         return saved.stream().map(this::toResponse).toList();
     }
 
+    // ✅ MAPPER
     public CourseResponse toResponse(Course c) {
         CategorySummaryResponse catSummary = c.getCategory() != null
                 ? new CategorySummaryResponse(
