@@ -74,4 +74,14 @@ public class CourseController {
                 LearningApiResponse.success("Módulos obtenidos",
                         moduleService.findByCourse(id, studentId)));
     }
+
+    @Operation(summary = "Actualizar una categoría y sincronizar con todos los cursos")
+    @PatchMapping("/{id}/category/{categorySlug}")
+    public ResponseEntity<LearningApiResponse<CourseResponse>> assignCategory(
+            @PathVariable Long id,
+            @PathVariable String categorySlug) {
+        return ResponseEntity.ok(
+                LearningApiResponse.success("Categoría asignada",
+                        courseService.assignCategory(id, categorySlug)));
+    }
 }

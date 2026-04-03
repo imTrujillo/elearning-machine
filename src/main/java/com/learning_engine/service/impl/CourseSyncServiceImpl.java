@@ -9,6 +9,7 @@ import com.learning_engine.repository.CategoryRepository;
 import com.learning_engine.repository.CourseRepository;
 import com.learning_engine.service.CourseSyncService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -19,12 +20,20 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
 public class CourseSyncServiceImpl implements CourseSyncService {
 
     private final WebClient webClient;
     private final CourseRepository courseRepository;
     private final CategoryRepository categoryRepository;
+
+    public CourseSyncServiceImpl(
+            @Qualifier("wooWebClient") WebClient webClient,
+            CourseRepository courseRepository,
+            CategoryRepository categoryRepository) {
+        this.webClient = webClient;
+        this.courseRepository = courseRepository;
+        this.categoryRepository = categoryRepository;
+    }
 
     @Override
     @CacheEvict(value = "courses", allEntries = true) // 🔥 limpiar cache

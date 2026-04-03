@@ -11,4 +11,5 @@ public interface CourseService {
     Page<CourseResponse> findByCategory (String slug, Pageable pageable);
     CourseResponse findById(Long id);
     List<CourseResponse> syncFromWordpress();
+    CourseResponse assignCategory(Long courseId, String slug);
 }

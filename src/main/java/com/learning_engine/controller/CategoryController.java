@@ -24,6 +24,14 @@ public class CategoryController {
 
     private final CategoryService categoryService;
 
+    @Operation(summary = "Sincronizar las categorías")
+    @PostMapping("/sync")
+    public ResponseEntity<LearningApiResponse<List<CategoryResponse>>> sync() {
+        return ResponseEntity.ok(
+                LearningApiResponse.success("Categorías sincronizadas",
+                        categoryService.syncFromWooCommerce()));
+    }
+
     @Operation(summary = "Listar todas las categorías")
     @GetMapping
     public ResponseEntity<LearningApiResponse<List<CategoryResponse>>> findAll() {

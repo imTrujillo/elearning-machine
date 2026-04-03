@@ -6,6 +6,7 @@ import com.learning_engine.dto.response.CategoryResponse;
 import java.util.List;
 
 public interface CategoryService {
+    List<CategoryResponse> syncFromWooCommerce();
     CategoryResponse create (CategoryRequest request);
     List<CategoryResponse> findAll();
     CategoryResponse findBySlug(String slug);

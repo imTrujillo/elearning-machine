@@ -24,10 +24,6 @@ public class CourseModule {
     private Boolean freePreview;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "module_id", nullable = false)
-    private CourseModule courseModule;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;
 

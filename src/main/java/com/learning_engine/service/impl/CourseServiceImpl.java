@@ -4,6 +4,7 @@ import com.learning_engine.dto.WooProductDto;
 import com.learning_engine.dto.WordpressPostDto;
 import com.learning_engine.dto.response.CategorySummaryResponse;
 import com.learning_engine.dto.response.CourseResponse;
+import com.learning_engine.entity.Category;
 import com.learning_engine.entity.Course;
 import com.learning_engine.repository.CategoryRepository;
 import com.learning_engine.repository.CourseRepository;
@@ -158,5 +159,15 @@ public class CourseServiceImpl implements CourseService {
                 totalLessons,
                 c.getCreatedAt()
         );
+    }
+
+    @CacheEvict(value = "courses", allEntries = true)
+    public CourseResponse assignCategory(Long courseId, String slug) {
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
+        Category category = categoryRepository.findBySlug(slug)
+                .orElseThrow(() -> new RuntimeException("Categoría no encontrada: " + slug));
+        course.setCategory(category);
+        return toResponse(courseRepository.save(course));
     }
 }
