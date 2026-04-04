@@ -31,6 +31,4 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
             """)
     List<Category> findAllWithActiveCourses();
 
-    @Query("SELECT COUNT(c) FROM Course c WHERE c.category.slug = :slug AND c.active = true")
-    int countCoursesBySlug(@Param("slug") String slug);
 }

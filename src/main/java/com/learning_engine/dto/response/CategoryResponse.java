@@ -8,6 +8,6 @@ public record CategoryResponse(
         String slug,
         String description,
         String imageUrl,
-        Integer totalCourses,     // calculado
+        Integer totalCourses,
         LocalDateTime createdAt
 ) {}

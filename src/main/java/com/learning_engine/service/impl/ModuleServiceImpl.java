@@ -34,7 +34,6 @@ public class ModuleServiceImpl implements ModuleService {
         List<LessonResponse> lessons = module.getLessons()
                 .stream()
                 .map(lesson -> {
-                    // ✅ Si no tiene acceso, solo muestra lecciones de preview gratis
                     boolean canAccess = hasAccess || Boolean.TRUE.equals(lesson.getFreePreview());
 
                     boolean completed = canAccess && lessonProgressRepository

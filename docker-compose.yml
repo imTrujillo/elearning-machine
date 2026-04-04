@@ -31,7 +31,7 @@ services:
       - redis-data:/data
     networks:
       - learning-network
-    command: redis-server --appendonly yes  # persistencia
+    command: redis-server --appendonly yes
 
   rabbitmq:
     image: rabbitmq:3-management-alpine

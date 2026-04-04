@@ -28,7 +28,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     private final StudentRepository studentRepository;
     private final CourseRepository courseRepository;
     private final RabbitTemplate rabbitTemplate;
-    private final CourseServiceImpl courseService; // para toResponse
+    private final CourseServiceImpl courseService;
 
     @Value("${rabbitmq.exchanges.enrollments}")
     private String enrollmentsExchange;

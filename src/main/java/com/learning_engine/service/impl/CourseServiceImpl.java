@@ -36,7 +36,6 @@ public class CourseServiceImpl implements CourseService {
     @Qualifier("wooWebClient")
     private final WebClient wooWebClient;
 
-    // ✅ CACHE CORREGIDO
     @Override
     @Cacheable(value = "courses", key = "'all_' + #pageable.pageNumber + '_' + #pageable.pageSize")
     public Page<CourseResponse> findAll(Pageable pageable) {
@@ -52,15 +51,15 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @CacheEvict(value = {"courses", "course"}, allEntries = true)
     public CourseResponse findById(Long id) {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Curso no encontrado: " + id));
         return toResponse(course);
     }
 
-    // ✅ SYNC + LIMPIEZA DE CACHE
     @Override
-    @CacheEvict(value = "courses", allEntries = true)
+    @CacheEvict(value = {"courses", "course"}, allEntries = true)
     public List<CourseResponse> syncFromWordpress() {
 
         List<WordpressPostDto> posts = wordpressWebClient.get()
@@ -127,7 +126,6 @@ public class CourseServiceImpl implements CourseService {
         return saved.stream().map(this::toResponse).toList();
     }
 
-    // ✅ MAPPER
     public CourseResponse toResponse(Course c) {
         CategorySummaryResponse catSummary = c.getCategory() != null
                 ? new CategorySummaryResponse(
