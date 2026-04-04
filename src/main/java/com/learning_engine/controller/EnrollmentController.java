@@ -67,4 +67,14 @@ public class EnrollmentController {
                 LearningApiResponse.success("Inscripción activada",
                         enrollmentService.activateByWooOrder(request.id())));
     }
+
+    @Operation(summary = "Verificar inscripción activa")
+    @GetMapping("/enrollments/verify")
+    public ResponseEntity<LearningApiResponse<Boolean>> verify(
+            @RequestParam Long studentId,
+            @RequestParam Long courseId) {
+        return ResponseEntity.ok(
+                LearningApiResponse.success("Verificación completada",
+                        enrollmentService.hasActiveEnrollment(studentId, courseId)));
+    }
 }

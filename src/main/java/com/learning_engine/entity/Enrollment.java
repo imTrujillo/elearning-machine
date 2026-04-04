@@ -35,4 +35,11 @@ public class Enrollment {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id", nullable = false)
     private Student student;
+
+    @PrePersist
+    protected void onCreate() {
+        if (enrolledAt == null) {
+            enrolledAt = LocalDateTime.now();
+        }
+    }
 }
