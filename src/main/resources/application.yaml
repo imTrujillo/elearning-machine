@@ -5,9 +5,9 @@ spring:
   application:
     name: learning-engine
   datasource:
-    url: ${MYSQL_URL}
-    username: ${MYSQL_USERNAME}
-    password: ${MYSQL_PASSWORD}
+    url: jdbc:mysql://localhost:3309/ingenieria_web
+    username: root
+    password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
@@ -18,29 +18,27 @@ spring:
         format_sql: true
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
-      password: ${REDIS_PASSWORD}
+      host: localhost
+      port: 6379
+      password:
   rabbitmq:
-    host: ${RABBITMQ_HOST}
-    port: ${RABBITMQ_PORT}
-    username: ${RABBITMQ_USERNAME}
-    password: ${RABBITMQ_PASSWORD}
+    host: localhost
+    port: 5672
+    username: user
+    password: password
   cache:
     type: redis
     redis:
       time-to-live: 600000
 
-
-
 wordpress:
-  base-url: ${WORDPRESS_URL}
-  username: ${WORDPRESS_USERNAME}
-  password: ${WORDPRESS_PASSWORD}
+  base-url: http://localhost
+  username: luis_04
+  password: mBwvqHS4PaQeni9hMiDtQDrt
 
 woocommerce:
-  consumer-key: ${WOO_CONSUMER_KEY}
-  consumer-secret: ${WOO_CONSUMER_SECRET}
+  consumer-key: ck_c9ae1c288ffca8e8c28d5b4a3e6ee7610000385b
+  consumer-secret: cs_bc94b4887068233c5fdda22aea6385a18d56d8b2
 
 rabbitmq:
   exchanges:
@@ -52,4 +50,3 @@ rabbitmq:
   routing-keys:
     enrollment-activated: enrollment.activated
     module-completed: module.completed
-

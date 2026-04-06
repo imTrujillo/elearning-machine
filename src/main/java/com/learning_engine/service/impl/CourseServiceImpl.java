@@ -2,6 +2,7 @@ package com.learning_engine.service.impl;
 
 import com.learning_engine.dto.WooProductDto;
 import com.learning_engine.dto.WordpressPostDto;
+import com.learning_engine.dto.request.CourseRequest;
 import com.learning_engine.dto.response.CategorySummaryResponse;
 import com.learning_engine.dto.response.CourseResponse;
 import com.learning_engine.entity.Category;
@@ -16,14 +17,13 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import com.learning_engine.dto.request.CourseRequest;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -53,7 +53,6 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
-    @CacheEvict(value = {"courses", "course"}, allEntries = true)
     public CourseResponse findById(Long id) {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Curso no encontrado: " + id));
@@ -61,9 +60,8 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
-    @CacheEvict(value = {"courses", "course"}, allEntries = true)
+    @CacheEvict(value = "courses", allEntries = true)
     public List<CourseResponse> syncFromWordpress() {
-
         List<WordpressPostDto> posts = wordpressWebClient.get()
                 .uri("/wp-json/wp/v2/posts?per_page=100&_embed")
                 .retrieve()
@@ -128,6 +126,77 @@ public class CourseServiceImpl implements CourseService {
         return saved.stream().map(this::toResponse).toList();
     }
 
+    // --- NUEVOS MÉTODOS CRUD ---
+
+    @Override
+    @Transactional
+    @CacheEvict(value = "courses", allEntries = true)
+    public CourseResponse createCourse(CourseRequest request) {
+        Category category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new RuntimeException("Category not found"));
+
+        Course course = new Course();
+        course.setTitle(request.getTitle());
+        course.setDescription(request.getDescription());
+        course.setImageUrl(request.getImageUrl());
+        course.setInstructor(request.getInstructor());
+        course.setCategory(category);
+        course.setPrice(request.getPrice());
+        course.setActive(request.isActive());
+
+        // Generamos un slug simple
+        course.setSlug(request.getTitle().toLowerCase().replace(" ", "-"));
+
+        return toResponse(courseRepository.save(course));
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = "courses", allEntries = true)
+    public CourseResponse updateCourse(Long id, CourseRequest request) {
+        Course course = courseRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Course not found"));
+
+        if (request.getCategoryId() != null) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new RuntimeException("Category not found"));
+            course.setCategory(category);
+        }
+
+        if (request.getTitle() != null) course.setTitle(request.getTitle());
+        if (request.getDescription() != null) course.setDescription(request.getDescription());
+        if (request.getPrice() != null) course.setPrice(request.getPrice());
+        course.setActive(request.isActive());
+
+        return toResponse(courseRepository.save(course));
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = "courses", allEntries = true)
+    public void deleteCourse(Long id) {
+        if (!courseRepository.existsById(id)) {
+            throw new RuntimeException("Course not found");
+        }
+        courseRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = "courses", allEntries = true)
+    public CourseResponse assignCategory(Long courseId, String slug) {
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
+
+        Category category = categoryRepository.findBySlug(slug)
+                .orElseThrow(() -> new RuntimeException("Categoría no encontrada: " + slug));
+
+        course.setCategory(category);
+
+        return toResponse(courseRepository.save(course));
+    }
+
+    // ✅ MAPPER
     public CourseResponse toResponse(Course c) {
         CategorySummaryResponse catSummary = c.getCategory() != null
                 ? new CategorySummaryResponse(
@@ -160,63 +229,4 @@ public class CourseServiceImpl implements CourseService {
                 c.getCreatedAt()
         );
     }
-
-    @CacheEvict(value = "courses", allEntries = true)
-    public CourseResponse assignCategory(Long courseId, String slug) {
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
-        Category category = categoryRepository.findBySlug(slug)
-                .orElseThrow(() -> new RuntimeException("Categoría no encontrada: " + slug));
-        course.setCategory(category);
-        return toResponse(courseRepository.save(course));
-    }
-
-    @Override
-    @Transactional
-    public CourseResponse createCourse(CourseRequest request) {
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Category not found"));
-
-        Course course = new Course();
-        course.setTitle(request.getTitle());
-        course.setDescription(request.getDescription());
-        course.setImageUrl(request.getImageUrl());
-        course.setInstructor(request.getInstructor());
-        course.setCategory(category);
-        course.setPrice(request.getPrice());
-        course.setActive(request.isActive());
-        // slug generation logic here if needed
-
-        return toResponse(courseRepository.save(course));
-    }
-
-    @Override
-    @Transactional
-    public CourseResponse updateCourse(Long id, CourseRequest request) {
-        Course course = courseRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Course not found"));
-
-        if (request.getCategoryId() != null) {
-            Category category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new RuntimeException("Category not found"));
-            course.setCategory(category);
-        }
-
-        if (request.getTitle() != null) course.setTitle(request.getTitle());
-        if (request.getDescription() != null) course.setDescription(request.getDescription());
-        if (request.getPrice() != null) course.setPrice(request.getPrice());
-        course.setActive(request.isActive());
-
-        return toResponse(courseRepository.save(course));
-    }
-
-    @Override
-    @Transactional
-    public void deleteCourse(Long id) {
-        if (!courseRepository.existsById(id)) {
-            throw new RuntimeException("Course not found");
-        }
-        courseRepository.deleteById(id);
-    }
-
 }

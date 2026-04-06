@@ -1,5 +1,6 @@
 package com.learning_engine.controller;
 
+import com.learning_engine.dto.request.CourseRequest;
 import com.learning_engine.dto.response.CourseResponse;
 import com.learning_engine.dto.response.LearningApiResponse;
 import com.learning_engine.dto.response.ModuleResponse;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -75,13 +77,42 @@ public class CourseController {
                         moduleService.findByCourse(id, studentId)));
     }
 
-    @Operation(summary = "Actualizar una categoría y sincronizar con todos los cursos")
+    // --- NUEVOS ENDPOINTS CRUD ---
+
+    @Operation(summary = "Crear un nuevo curso")
+    @PostMapping
+    public ResponseEntity<LearningApiResponse<CourseResponse>> createCourse(@RequestBody CourseRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(LearningApiResponse.success("Curso creado", courseService.createCourse(request)));
+    }
+
+    @Operation(summary = "Actualizar curso")
+    @PatchMapping("/{id}")
+    public ResponseEntity<LearningApiResponse<CourseResponse>> updateCourse(
+            @PathVariable Long id, @RequestBody CourseRequest request) {
+        return ResponseEntity.ok(
+                LearningApiResponse.success("Curso actualizado", courseService.updateCourse(id, request)));
+    }
+
+    @Operation(summary = "Asignar categoría a un curso")
     @PatchMapping("/{id}/category/{categorySlug}")
     public ResponseEntity<LearningApiResponse<CourseResponse>> assignCategory(
             @PathVariable Long id,
             @PathVariable String categorySlug) {
+
         return ResponseEntity.ok(
-                LearningApiResponse.success("Categoría asignada",
-                        courseService.assignCategory(id, categorySlug)));
+                LearningApiResponse.success(
+                        "Categoría asignada",
+                        courseService.assignCategory(id, categorySlug)
+                )
+        );
+    }
+
+    @Operation(summary = "Eliminar curso")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<LearningApiResponse<Void>> deleteCourse(@PathVariable Long id) {
+        courseService.deleteCourse(id);
+        return ResponseEntity.ok(
+                LearningApiResponse.success("Curso eliminado", null));
     }
 }
