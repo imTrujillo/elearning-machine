@@ -1,37 +1,54 @@
 package com.learning_engine.controller;
 
-import com.learning_engine.dto.request.LessonCompleteRequest;
+import com.learning_engine.dto.request.LessonRequest;
 import com.learning_engine.dto.response.LearningApiResponse;
-import com.learning_engine.dto.response.LessonProgressResponse;
+import com.learning_engine.dto.response.LessonResponse;
 import com.learning_engine.service.LessonService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+
+import java.util.List;
 
 @RestController
-@RequestMapping("/api/lessons")
-@RequiredArgsConstructor
-@Tag(name = "Lecciones", description = "Progreso de lecciones")
+@RequestMapping("/api/modules/{moduleId}/lessons")
 public class LessonController {
 
     private final LessonService lessonService;
 
-    @Operation(summary = "Marcar lección como completada")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Lección completada"),
-            @ApiResponse(responseCode = "403", description = "Sin inscripción activa"),
-            @ApiResponse(responseCode = "404", description = "Lección no encontrada")
-    })
-    @PostMapping("/{id}/complete")
-    public ResponseEntity<LearningApiResponse<LessonProgressResponse>> complete(
-            @PathVariable Long id,
-            @RequestBody LessonCompleteRequest request) {
+    public LessonController(LessonService lessonService) {
+        this.lessonService = lessonService;
+    }
+
+    @GetMapping
+    public ResponseEntity<LearningApiResponse<List<LessonResponse>>> getLessons(@PathVariable Long moduleId) {
         return ResponseEntity.ok(
-                LearningApiResponse.success("Lección completada",
-                        lessonService.complete(id, request.studentId())));
+                LearningApiResponse.success("Lecciones obtenidas", lessonService.getLessonsByModuleId(moduleId))
+        );
+    }
+
+    @PostMapping
+    public ResponseEntity<LearningApiResponse<LessonResponse>> createLesson(
+            @PathVariable Long moduleId, @RequestBody LessonRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                LearningApiResponse.success("Lección creada", lessonService.createLesson(moduleId, request))
+        );
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<LearningApiResponse<LessonResponse>> updateLesson(
+            @PathVariable Long moduleId, @PathVariable Long id, @RequestBody LessonRequest request) {
+        return ResponseEntity.ok(
+                LearningApiResponse.success("Lección actualizada", lessonService.updateLesson(moduleId, id, request))
+        );
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<LearningApiResponse<Void>> deleteLesson(
+            @PathVariable Long moduleId, @PathVariable Long id) {
+        lessonService.deleteLesson(moduleId, id);
+        return ResponseEntity.ok(
+                LearningApiResponse.success("Lección eliminada", null)
+        );
     }
 }

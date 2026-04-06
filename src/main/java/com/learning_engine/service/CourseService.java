@@ -1,5 +1,6 @@
 package com.learning_engine.service;
 
+import com.learning_engine.dto.request.CourseRequest;
 import com.learning_engine.dto.response.CourseResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,4 +13,7 @@ public interface CourseService {
     CourseResponse findById(Long id);
     List<CourseResponse> syncFromWordpress();
     CourseResponse assignCategory(Long courseId, String slug);
+    CourseResponse createCourse(CourseRequest request);
+    CourseResponse updateCourse(Long id, CourseRequest request);
+    void deleteCourse(Long id);
 }

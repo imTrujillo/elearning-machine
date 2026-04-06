@@ -22,6 +22,8 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import com.learning_engine.dto.request.CourseRequest;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -168,4 +170,53 @@ public class CourseServiceImpl implements CourseService {
         course.setCategory(category);
         return toResponse(courseRepository.save(course));
     }
+
+    @Override
+    @Transactional
+    public CourseResponse createCourse(CourseRequest request) {
+        Category category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new RuntimeException("Category not found"));
+
+        Course course = new Course();
+        course.setTitle(request.getTitle());
+        course.setDescription(request.getDescription());
+        course.setImageUrl(request.getImageUrl());
+        course.setInstructor(request.getInstructor());
+        course.setCategory(category);
+        course.setPrice(request.getPrice());
+        course.setActive(request.isActive());
+        // slug generation logic here if needed
+
+        return toResponse(courseRepository.save(course));
+    }
+
+    @Override
+    @Transactional
+    public CourseResponse updateCourse(Long id, CourseRequest request) {
+        Course course = courseRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Course not found"));
+
+        if (request.getCategoryId() != null) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new RuntimeException("Category not found"));
+            course.setCategory(category);
+        }
+
+        if (request.getTitle() != null) course.setTitle(request.getTitle());
+        if (request.getDescription() != null) course.setDescription(request.getDescription());
+        if (request.getPrice() != null) course.setPrice(request.getPrice());
+        course.setActive(request.isActive());
+
+        return toResponse(courseRepository.save(course));
+    }
+
+    @Override
+    @Transactional
+    public void deleteCourse(Long id) {
+        if (!courseRepository.existsById(id)) {
+            throw new RuntimeException("Course not found");
+        }
+        courseRepository.deleteById(id);
+    }
+
 }
