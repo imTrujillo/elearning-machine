@@ -27,7 +27,7 @@ public class CourseSyncServiceImpl implements CourseSyncService {
     private final CategoryRepository categoryRepository;
 
     @Override
-    @CacheEvict(value = "courses", allEntries = true) // 🔥 limpiar cache
+    @CacheEvict(value = "courses", allEntries = true)
     public List<CourseResponse> syncCourses() {
 
         List<WooProductDto> products = webClient.get()
@@ -43,24 +43,20 @@ public class CourseSyncServiceImpl implements CourseSyncService {
 
         for (WooProductDto product : products) {
 
-            // 🔥 evitar duplicados
             Optional<Course> existing = courseRepository.findByWooProductId(product.id());
             if (existing.isPresent()) continue;
 
             Course course = new Course();
 
-            // 📌 datos principales
             course.setTitle(product.name());
             course.setDescription(product.name());
             course.setInstructor("Admin");
 
-            // 📌 precio (FIX null-safe)
             String price = product.regular_price();
             course.setPrice(new BigDecimal(
                     (price == null || price.isEmpty()) ? "0" : price
             ));
 
-            // 📌 IDs externos
             course.setWooProductId(product.id());
             course.setSlug(
                     product.name() != null
@@ -69,7 +65,6 @@ public class CourseSyncServiceImpl implements CourseSyncService {
             );
             course.setActive(true);
 
-            // 📌 categoría
             String categoryName = (product.categories() == null || product.categories().isEmpty())
                     ? "General"
                     : product.categories().get(0).name();
@@ -84,10 +79,8 @@ public class CourseSyncServiceImpl implements CourseSyncService {
 
             course.setCategory(category);
 
-            // 💾 guardar
             Course saved = courseRepository.save(course);
 
-            // ⚠️ evitar posibles NPE en modules
             int totalModules = saved.getCourseModules() != null
                     ? saved.getCourseModules().size()
                     : 0;

@@ -41,12 +41,10 @@ public class LessonServiceImpl implements LessonService {
 
         Long courseId = lesson.getModule().getCourse().getId();
 
-        // ✅ Verificar que tiene inscripción activa
         if (!enrollmentRepository.hasActiveEnrollment(studentId, courseId)) {
             throw new RuntimeException("No tienes acceso a este curso");
         }
 
-        // ✅ Si ya estaba completada, no duplicar
         LessonProgress progress = lessonProgressRepository
                 .findByStudentIdAndLessonId(studentId, lessonId)
                 .orElse(LessonProgress.builder()
@@ -57,7 +55,6 @@ public class LessonServiceImpl implements LessonService {
         progress.setCompletedAt(LocalDateTime.now());
         lessonProgressRepository.save(progress);
 
-        // ✅ Verificar si se completó todo el módulo
         CourseModule module = lesson.getModule();
         int totalLessons = module.getLessons().size();
         int completedLessons = lessonProgressRepository
@@ -65,7 +62,6 @@ public class LessonServiceImpl implements LessonService {
 
         boolean moduleCompleted = totalLessons > 0 && completedLessons >= totalLessons;
 
-        // ✅ Publicar evento module.completed a RabbitMQ
         if (moduleCompleted) {
             Student student = progress.getStudent();
             ModuleCompletedEvent event = new ModuleCompletedEvent(

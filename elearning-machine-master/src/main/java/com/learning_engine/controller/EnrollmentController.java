@@ -57,7 +57,6 @@ public class EnrollmentController {
     public ResponseEntity<LearningApiResponse<EnrollmentResponse>> webhook(
             @RequestBody WooWebhookRequest request) {
 
-        // ✅ Solo procesar cuando el pago está completado
         if (!"completed".equalsIgnoreCase(request.status())) {
             return ResponseEntity.ok(
                     LearningApiResponse.success("Estado ignorado: " + request.status(), null));

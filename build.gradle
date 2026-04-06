@@ -39,7 +39,7 @@ dependencies {
     // Jackson fechas
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
-    // ✅ Swagger compatible con Spring Boot 3.5.x
+    // Swagger
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
 
     // Lombok

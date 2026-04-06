@@ -28,7 +28,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     private final StudentRepository studentRepository;
     private final CourseRepository courseRepository;
     private final RabbitTemplate rabbitTemplate;
-    private final CourseServiceImpl courseService; // para toResponse
+    private final CourseServiceImpl courseService;
 
     @Value("${rabbitmq.exchanges.enrollments}")
     private String enrollmentsExchange;
@@ -67,7 +67,6 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                 .toList();
     }
 
-    // ✅ Llamado desde el webhook de WooCommerce
     @Override
     public EnrollmentResponse activateByWooOrder(Long wooOrderId) {
         Enrollment enrollment = enrollmentRepository.findByWooOrderId(wooOrderId)
@@ -77,7 +76,6 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         enrollment.setActivatedAt(LocalDateTime.now());
         Enrollment saved = enrollmentRepository.save(enrollment);
 
-        // ✅ Publicar evento a RabbitMQ
         EnrollmentActivatedEvent event = new EnrollmentActivatedEvent(
                 saved.getId(),
                 saved.getStudent().getId(),
@@ -98,7 +96,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     }
 
     private EnrollmentResponse toResponse(Enrollment e) {
-        int progress = 0; // se puede calcular con LessonProgressRepository si se inyecta
+        int progress = 0;
 
         return new EnrollmentResponse(
                 e.getId(),

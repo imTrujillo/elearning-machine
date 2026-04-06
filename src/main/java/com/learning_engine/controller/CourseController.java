@@ -26,8 +26,8 @@ import java.util.List;
 @Tag(name = "Cursos", description = "Catálogo de cursos y sincronización")
 public class CourseController {
 
+    
     private final CourseService courseService;
-    private final ModuleService moduleService;
 
     @Operation(summary = "Catálogo paginado de cursos")
     @ApiResponses({
@@ -66,18 +66,6 @@ public class CourseController {
         return ResponseEntity.ok(
                 LearningApiResponse.success("Sincronizados " + synced.size() + " cursos", synced));
     }
-
-    @Operation(summary = "Módulos de un curso con control de acceso")
-    @GetMapping("/{id}/modules")
-    public ResponseEntity<LearningApiResponse<List<ModuleResponse>>> getModules(
-            @PathVariable Long id,
-            @RequestParam Long studentId) {   // en prod vendría del JWT
-        return ResponseEntity.ok(
-                LearningApiResponse.success("Módulos obtenidos",
-                        moduleService.findByCourse(id, studentId)));
-    }
-
-    // --- NUEVOS ENDPOINTS CRUD ---
 
     @Operation(summary = "Crear un nuevo curso")
     @PostMapping

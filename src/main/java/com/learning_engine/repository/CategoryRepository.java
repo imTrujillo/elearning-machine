@@ -20,7 +20,6 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     boolean existsByName(String name);
 
-    // Categorías que tienen al menos un curso activo
     @Query("""
             SELECT DISTINCT c FROM Category c
             WHERE EXISTS (

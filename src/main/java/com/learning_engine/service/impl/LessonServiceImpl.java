@@ -3,15 +3,12 @@ package com.learning_engine.service.impl;
 import com.learning_engine.dto.request.LessonRequest;
 import com.learning_engine.dto.response.LessonProgressResponse;
 import com.learning_engine.dto.response.LessonResponse;
-import com.learning_engine.dto.response.ModuleCompletedEvent;
+import com.learning_engine.dto.ModuleCompletedAt;
 import com.learning_engine.entity.CourseModule;
 import com.learning_engine.entity.Lesson;
 import com.learning_engine.entity.LessonProgress;
 import com.learning_engine.entity.Student;
-import com.learning_engine.repository.EnrollmentRepository;
-import com.learning_engine.repository.LessonProgressRepository;
-import com.learning_engine.repository.LessonRepository;
-import com.learning_engine.repository.ModuleRepository;
+import com.learning_engine.repository.*;
 import com.learning_engine.service.LessonService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +26,7 @@ public class LessonServiceImpl implements LessonService {
 
     private final LessonRepository lessonRepository;
     private final LessonProgressRepository lessonProgressRepository;
+    private final StudentRepository studentRepository;
     private final ModuleRepository moduleRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final RabbitTemplate rabbitTemplate;
@@ -50,10 +48,14 @@ public class LessonServiceImpl implements LessonService {
             throw new RuntimeException("No tienes acceso a este curso");
         }
 
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new RuntimeException("Estudiante no encontrado: " + studentId));
+
         LessonProgress progress = lessonProgressRepository
                 .findByStudentIdAndLessonId(studentId, lessonId)
                 .orElse(LessonProgress.builder()
                         .lesson(lesson)
+                        .student(student)
                         .build());
 
         progress.setCompleted(true);
@@ -68,13 +70,12 @@ public class LessonServiceImpl implements LessonService {
         boolean moduleCompleted = totalLessons > 0 && completedLessons >= totalLessons;
 
         if (moduleCompleted) {
-            Student student = progress.getStudent();
-            ModuleCompletedEvent event = new ModuleCompletedEvent(
+            ModuleCompletedAt event = new ModuleCompletedAt(
                     module.getId(),
                     module.getTitle(),
                     courseId,
                     studentId,
-                    student != null ? student.getEmail() : "",
+                    student.getEmail(),
                     LocalDateTime.now()
             );
             rabbitTemplate.convertAndSend(modulesExchange, moduleCompletedKey, event);
@@ -144,7 +145,6 @@ public class LessonServiceImpl implements LessonService {
         lessonRepository.delete(lesson);
     }
 
-    // ¡Aquí está el método que faltaba!
     private LessonResponse mapToResponse(Lesson lesson) {
         return new LessonResponse(
                 lesson.getId(),
@@ -154,7 +154,7 @@ public class LessonServiceImpl implements LessonService {
                 lesson.getDurationMinutes(),
                 lesson.getOrderIndex(),
                 lesson.getFreePreview() != null ? lesson.getFreePreview() : false,
-                false // completed: por defecto false para la vista administrativa
+                false
         );
     }
 }

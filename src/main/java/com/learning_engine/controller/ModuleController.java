@@ -4,6 +4,7 @@ import com.learning_engine.dto.request.ModuleRequest;
 import com.learning_engine.dto.response.LearningApiResponse;
 import com.learning_engine.dto.response.ModuleResponse;
 import com.learning_engine.service.ModuleService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,6 +13,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/courses/{courseId}/modules")
+@Tag(name = "Módulos", description = "Administrador de módulos")
 public class ModuleController {
 
     private final ModuleService moduleService;

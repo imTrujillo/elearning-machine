@@ -98,7 +98,6 @@ public class ModuleServiceImpl implements ModuleService {
         return new ModuleResponse(module.getId(), module.getTitle(), module.getDescription(), module.getOrderIndex(), lessons);
     }
 
-    // Mapper simple para crear/actualizar desde el panel de admin (no evaluamos lecciones/studentId)
     private ModuleResponse toAdminResponse(CourseModule module) {
         return new ModuleResponse(
                 module.getId(),

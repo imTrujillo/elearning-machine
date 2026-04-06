@@ -126,8 +126,6 @@ public class CourseServiceImpl implements CourseService {
         return saved.stream().map(this::toResponse).toList();
     }
 
-    // --- NUEVOS MÉTODOS CRUD ---
-
     @Override
     @Transactional
     @CacheEvict(value = "courses", allEntries = true)
@@ -144,7 +142,6 @@ public class CourseServiceImpl implements CourseService {
         course.setPrice(request.getPrice());
         course.setActive(request.isActive());
 
-        // Generamos un slug simple
         course.setSlug(request.getTitle().toLowerCase().replace(" ", "-"));
 
         return toResponse(courseRepository.save(course));
@@ -196,7 +193,6 @@ public class CourseServiceImpl implements CourseService {
         return toResponse(courseRepository.save(course));
     }
 
-    // ✅ MAPPER
     public CourseResponse toResponse(Course c) {
         CategorySummaryResponse catSummary = c.getCategory() != null
                 ? new CategorySummaryResponse(

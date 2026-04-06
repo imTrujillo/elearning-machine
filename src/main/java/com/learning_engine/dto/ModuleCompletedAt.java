@@ -9,5 +9,4 @@ public record ModuleCompletedAt(
         Long studentId,
         String studentEmail,
         LocalDateTime completedAt
-) {
-}
+) {}
