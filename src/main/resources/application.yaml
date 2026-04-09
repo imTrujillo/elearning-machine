@@ -1,5 +1,6 @@
 server:
   port: 8081
+  forward-headers-strategy: framework
 
 spring:
   application:
@@ -26,6 +27,7 @@ spring:
     port: ${RABBITMQ_PORT}
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
+    virtual-host: ${RABBITMQ_VHOST}
   cache:
     type: redis
     redis:
@@ -52,3 +54,10 @@ rabbitmq:
   routing-keys:
     enrollment-activated: enrollment.activated
     module-completed: module.completed
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+  override-with-generic-response: false

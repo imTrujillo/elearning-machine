@@ -5,6 +5,7 @@ import com.learning_engine.dto.request.WooWebhookRequest;
 import com.learning_engine.dto.response.EnrollmentResponse;
 import com.learning_engine.dto.response.LearningApiResponse;
 import com.learning_engine.service.EnrollmentService;
+import com.learning_engine.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -13,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +26,7 @@ import java.util.List;
 public class EnrollmentController {
 
     private final EnrollmentService enrollmentService;
+    private final StudentService studentService;
 
     @Operation(summary = "Crear inscripción")
     @ApiResponses({
@@ -42,7 +45,11 @@ public class EnrollmentController {
     @Operation(summary = "Cursos del estudiante")
     @GetMapping("/my-courses")
     public ResponseEntity<LearningApiResponse<List<EnrollmentResponse>>> myCourses(
-            @RequestParam Long studentId) {  // en prod vendría del JWT
+            Authentication auth) {
+
+        String email = auth.getName();
+        Long studentId = studentService.findByEmail(email).id();
+
         return ResponseEntity.ok(
                 LearningApiResponse.success("Cursos obtenidos",
                         enrollmentService.findByStudent(studentId)));

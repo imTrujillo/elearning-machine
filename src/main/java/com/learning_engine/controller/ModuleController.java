@@ -4,9 +4,11 @@ import com.learning_engine.dto.request.ModuleRequest;
 import com.learning_engine.dto.response.LearningApiResponse;
 import com.learning_engine.dto.response.ModuleResponse;
 import com.learning_engine.service.ModuleService;
+import com.learning_engine.service.StudentService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,17 +19,24 @@ import java.util.List;
 public class ModuleController {
 
     private final ModuleService moduleService;
+    private final StudentService studentService;
 
-    public ModuleController(ModuleService moduleService) {
+    public ModuleController(ModuleService moduleService, StudentService studentService) {
         this.moduleService = moduleService;
+        this.studentService = studentService;
     }
 
     @GetMapping
     public ResponseEntity<LearningApiResponse<List<ModuleResponse>>> getModules(
             @PathVariable Long courseId,
-            @RequestParam Long studentId) {
+            Authentication auth) {
+
+        String email = auth.getName();
+        Long studentId = studentService.findByEmail(email).id();
+
         return ResponseEntity.ok(
-                LearningApiResponse.success("Módulos obtenidos", moduleService.findByCourse(courseId, studentId))
+                LearningApiResponse.success("Módulos obtenidos",
+                        moduleService.findByCourse(courseId, studentId))
         );
     }
 

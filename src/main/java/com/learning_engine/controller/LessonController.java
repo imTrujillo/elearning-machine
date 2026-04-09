@@ -5,8 +5,10 @@ import com.learning_engine.dto.response.LearningApiResponse;
 import com.learning_engine.dto.response.LessonProgressResponse;
 import com.learning_engine.dto.response.LessonResponse;
 import com.learning_engine.service.LessonService;
+import com.learning_engine.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
@@ -19,9 +21,11 @@ import java.util.List;
 public class LessonController {
 
     private final LessonService lessonService;
+    private final StudentService studentService;
 
-    public LessonController(LessonService lessonService) {
+    public LessonController(LessonService lessonService, StudentService studentService) {
         this.lessonService = lessonService;
+        this.studentService = studentService;
     }
 
     @GetMapping
@@ -61,7 +65,9 @@ public class LessonController {
     public ResponseEntity<LearningApiResponse<LessonProgressResponse>> completeLesson(
             @PathVariable Long moduleId,
             @PathVariable Long id,
-            @RequestParam Long studentId) {
+            Authentication auth) {
+        String email = auth.getName();
+        Long studentId = studentService.findByEmail(email).id();
 
         return ResponseEntity.ok(
                 LearningApiResponse.success("Lección completada",
