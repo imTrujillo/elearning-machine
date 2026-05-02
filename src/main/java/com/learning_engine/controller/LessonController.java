@@ -67,9 +67,8 @@ public class LessonController {
     public ResponseEntity<LearningApiResponse<LessonProgressResponse>> completeLesson(
             @PathVariable Long moduleId,
             @PathVariable Long id,
-            Authentication auth) {
-        String email = auth.getName();
-        Long studentId = studentService.findByEmail(email).id();
+            @RequestParam String studentEmail) {
+        Long studentId = studentService.findByEmail(studentEmail).id();
 
         return ResponseEntity.ok(
                 LearningApiResponse.success("Lección completada",

@@ -21,7 +21,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "students", key = "#result.email")
+    @CacheEvict(value = "students", allEntries = true)
     public StudentResponse create(StudentRequest request) {
         if (studentRepository.existsByEmail(request.email())) {
             throw new RuntimeException("Ya existe un estudiante con el email: " + request.email());

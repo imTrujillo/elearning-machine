@@ -16,6 +16,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -40,6 +41,7 @@ public class LessonServiceImpl implements LessonService {
     private String moduleCompletedKey;
 
     @Override
+    @CacheEvict(value = "students", allEntries = true, beforeInvocation = true)
     public LessonProgressResponse complete(Long lessonId, Long studentId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new RuntimeException("Lección no encontrada: " + lessonId));
