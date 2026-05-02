@@ -2,6 +2,7 @@ package com.learning_engine.service;
 
 import com.learning_engine.dto.request.ModuleRequest;
 import com.learning_engine.dto.response.ModuleResponse;
+import com.learning_engine.dto.response.PagedResponse;
 
 import java.util.List;
 

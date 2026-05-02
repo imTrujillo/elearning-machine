@@ -4,6 +4,7 @@ import com.learning_engine.dto.request.LessonRequest;
 import com.learning_engine.dto.response.LearningApiResponse;
 import com.learning_engine.dto.response.LessonProgressResponse;
 import com.learning_engine.dto.response.LessonResponse;
+import com.learning_engine.dto.response.PagedResponse;
 import com.learning_engine.service.LessonService;
 import com.learning_engine.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
 import java.util.List;
+
 
 @RestController
 @RequestMapping("/api/modules/{moduleId}/lessons")

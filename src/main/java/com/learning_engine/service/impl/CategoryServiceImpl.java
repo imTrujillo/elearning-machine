@@ -1,60 +1,26 @@
 package com.learning_engine.service.impl;
 
-import com.learning_engine.dto.WooCategoryDto;
 import com.learning_engine.dto.request.CategoryRequest;
 import com.learning_engine.dto.response.CategoryResponse;
+import com.learning_engine.dto.response.PagedResponse;
 import com.learning_engine.entity.Category;
+import com.learning_engine.mapper.CategoryMapper;
 import com.learning_engine.repository.CategoryRepository;
 import com.learning_engine.service.CategoryService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
 
+    private final CategoryMapper categoryMapper;
     private final CategoryRepository categoryRepository;
-
-    @Qualifier("wooWebClient")
-    private final WebClient wooWebClient;
-
-    @Override
-    @CacheEvict(value = {"categories", "category"}, allEntries = true)
-    public List<CategoryResponse> syncFromWooCommerce() {
-        List<WooCategoryDto> wooCategories = wooWebClient.get()
-                .uri("/wp-json/wc/v3/products/categories?per_page=100&hide_empty=false")
-                .retrieve()
-                .bodyToFlux(WooCategoryDto.class)
-                .collectList()
-                .block();
-
-        if (wooCategories == null || wooCategories.isEmpty()) return List.of();
-
-        List<Category> saved = wooCategories.stream()
-                .filter(c -> !"uncategorized".equals(c.slug()))
-                .map(woo -> {
-                    Category cat = categoryRepository.findBySlug(woo.slug())
-                            .orElse(new Category());
-
-                    cat.setName(woo.name());
-                    cat.setSlug(woo.slug());
-                    cat.setDescription(woo.description());
-
-                    if (woo.image() != null) {
-                        cat.setImageUrl(woo.image().src());
-                    }
-
-                    return categoryRepository.save(cat);
-                }).toList();
-
-        return saved.stream().map(this::toResponse).toList();
-    }
 
     @Override
     @CacheEvict(value = "categories", allEntries = true)
@@ -63,23 +29,15 @@ public class CategoryServiceImpl implements CategoryService {
             throw new RuntimeException("Ya existe una categoría con el slug: " + request.slug());
         }
 
-        Category category = Category.builder()
-                .name(request.name())
-                .slug(request.slug())
-                .description(request.description())
-                .imageUrl(request.imageUrl())
-                .build();
-
-        return toResponse(categoryRepository.save(category));
+        return categoryMapper.toResponse(categoryRepository.save(categoryMapper.toEntity(request)));
     }
 
     @Override
-    @Cacheable(value = "categories", key = "'all'")
-    public List<CategoryResponse> findAll() {
-        return categoryRepository.findAll()
-                .stream()
-                .map(this::toResponse)
-                .toList();
+    @Cacheable(value = "categories", key = "'page-' + #pageable.pageNumber")
+    public PagedResponse<CategoryResponse> findAll(Pageable pageable) {
+        Page<Category> page = categoryRepository.findAll(pageable);
+        Page<CategoryResponse> mapped = page.map(categoryMapper::toResponse);
+        return PagedResponse.of(mapped);
     }
 
     @Override
@@ -87,7 +45,7 @@ public class CategoryServiceImpl implements CategoryService {
     public CategoryResponse findBySlug(String slug) {
         Category category = categoryRepository.findBySlug(slug)
                 .orElseThrow(() -> new RuntimeException("Categoría no encontrada: " + slug));
-        return toResponse(category);
+        return categoryMapper.toResponse(category);
     }
 
     @Override
@@ -96,12 +54,7 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Categoría no encontrada: " + id));
 
-        category.setName(request.name());
-        category.setSlug(request.slug());
-        category.setDescription(request.description());
-        category.setImageUrl(request.imageUrl());
-
-        return toResponse(categoryRepository.save(category));
+        return categoryMapper.toResponse(categoryRepository.save(categoryMapper.updateEntity(category, request)));
     }
 
     @Override
@@ -111,17 +64,5 @@ public class CategoryServiceImpl implements CategoryService {
             throw new RuntimeException("Categoría no encontrada: " + id);
         }
         categoryRepository.deleteById(id);
-    }
-
-    private CategoryResponse toResponse(Category c) {
-        return new CategoryResponse(
-                c.getId(),
-                c.getName(),
-                c.getSlug(),
-                c.getDescription(),
-                c.getImageUrl(),
-                c.getCourses() != null ? c.getCourses().size() : 0,
-                c.getCreatedAt()
-        );
     }
 }

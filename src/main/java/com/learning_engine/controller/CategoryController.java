@@ -3,6 +3,7 @@ package com.learning_engine.controller;
 import com.learning_engine.dto.request.CategoryRequest;
 import com.learning_engine.dto.response.CategoryResponse;
 import com.learning_engine.dto.response.LearningApiResponse;
+import com.learning_engine.dto.response.PagedResponse;
 import com.learning_engine.service.CategoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -10,11 +11,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/categories")
@@ -24,20 +26,13 @@ public class CategoryController {
 
     private final CategoryService categoryService;
 
-    @Operation(summary = "Sincronizar las categorías")
-    @PostMapping("/sync")
-    public ResponseEntity<LearningApiResponse<List<CategoryResponse>>> sync() {
-        return ResponseEntity.ok(
-                LearningApiResponse.success("Categorías sincronizadas",
-                        categoryService.syncFromWooCommerce()));
-    }
-
     @Operation(summary = "Listar todas las categorías")
     @GetMapping
-    public ResponseEntity<LearningApiResponse<List<CategoryResponse>>> findAll() {
-        
+    public ResponseEntity<LearningApiResponse<PagedResponse<CategoryResponse>>> findAll(@RequestParam(defaultValue = "0") int page,
+                                                                                        @RequestParam(defaultValue = "12") int size) {
+        Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(
-                LearningApiResponse.success("Categorías obtenidas", categoryService.findAll()));
+                LearningApiResponse.success("Categorías obtenidas", categoryService.findAll(pageable)));
     }
 
     @Operation(summary = "Buscar categoría por slug")

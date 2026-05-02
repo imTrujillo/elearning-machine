@@ -3,11 +3,11 @@ package com.learning_engine.service.impl;
 import com.learning_engine.dto.EnrollmentActivatedEvent;
 import com.learning_engine.dto.request.EnrollmentRequest;
 import com.learning_engine.dto.response.EnrollmentResponse;
-import com.learning_engine.dto.response.StudentResponse;
 import com.learning_engine.entity.Course;
 import com.learning_engine.entity.Enrollment;
 import com.learning_engine.entity.Student;
 import com.learning_engine.enums.EnrollmentStatus;
+import com.learning_engine.mapper.EnrollmentMapper;
 import com.learning_engine.repository.CourseRepository;
 import com.learning_engine.repository.EnrollmentRepository;
 import com.learning_engine.repository.StudentRepository;
@@ -28,7 +28,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     private final StudentRepository studentRepository;
     private final CourseRepository courseRepository;
     private final RabbitTemplate rabbitTemplate;
-    private final CourseServiceImpl courseService;
+    private final EnrollmentMapper enrollmentMapper;
 
     @Value("${rabbitmq.exchanges.enrollments}")
     private String enrollmentsExchange;
@@ -44,8 +44,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         Course course = courseRepository.findById(request.courseId())
                 .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
 
-        if (enrollmentRepository.existsByStudentIdAndCourseId(
-                request.studentId(), request.courseId())) {
+        if (enrollmentRepository.existsByStudentIdAndCourseId(request.studentId(), request.courseId())) {
             throw new RuntimeException("El estudiante ya está inscrito en este curso");
         }
 
@@ -56,14 +55,14 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                 .status(EnrollmentStatus.PENDING_PAYMENT)
                 .build();
 
-        return toResponse(enrollmentRepository.save(enrollment));
+        return enrollmentMapper.toResponse(enrollmentRepository.save(enrollment));
     }
 
     @Override
     public List<EnrollmentResponse> findByStudent(Long studentId) {
         return enrollmentRepository.findByStudentId(studentId)
                 .stream()
-                .map(this::toResponse)
+                .map(enrollmentMapper::toResponse)
                 .toList();
     }
 
@@ -87,33 +86,11 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
         rabbitTemplate.convertAndSend(enrollmentsExchange, enrollmentActivatedKey, event);
 
-        return toResponse(saved);
+        return enrollmentMapper.toResponse(saved);
     }
 
     @Override
     public boolean hasActiveEnrollment(Long studentId, Long courseId) {
         return enrollmentRepository.hasActiveEnrollment(studentId, courseId);
-    }
-
-    private EnrollmentResponse toResponse(Enrollment e) {
-        int progress = 0;
-        return new EnrollmentResponse(
-                e.getId(),
-                new StudentResponse(
-                        e.getStudent().getId(),
-                        e.getStudent().getFirstName(),
-                        e.getStudent().getLastName(),
-                        e.getStudent().getEmail(),
-                        e.getStudent().getPhone(),
-                        e.getStudent().getCreatedAt(),
-                        null, null),
-                e.getStatus(),
-                e.getWooOrderId(),
-                courseService.toResponse(e.getCourse()),
-                e.getEnrolledAt(),
-                e.getActivatedAt(),
-                e.getCompletedAt(),
-                progress
-        );
     }
 }

@@ -45,10 +45,9 @@ public class EnrollmentController {
     @Operation(summary = "Cursos del estudiante")
     @GetMapping("/my-courses")
     public ResponseEntity<LearningApiResponse<List<EnrollmentResponse>>> myCourses(
-            Authentication auth) {
+            @RequestParam String studentEmail) {
 
-        String email = auth.getName();
-        Long studentId = studentService.findByEmail(email).id();
+        Long studentId = studentService.findByEmail(studentEmail).id();
 
         return ResponseEntity.ok(
                 LearningApiResponse.success("Cursos obtenidos",
@@ -77,8 +76,10 @@ public class EnrollmentController {
     @Operation(summary = "Verificar inscripción activa")
     @GetMapping("/enrollments/verify")
     public ResponseEntity<LearningApiResponse<Boolean>> verify(
-            @RequestParam Long studentId,
+            @RequestParam String studentEmail,
             @RequestParam Long courseId) {
+        Long studentId = studentService.findByEmail(studentEmail).id();
+
         return ResponseEntity.ok(
                 LearningApiResponse.success("Verificación completada",
                         enrollmentService.hasActiveEnrollment(studentId, courseId)));

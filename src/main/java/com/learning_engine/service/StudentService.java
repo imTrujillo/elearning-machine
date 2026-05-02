@@ -7,5 +7,5 @@ public interface StudentService {
     StudentResponse create(StudentRequest request);
     StudentResponse findById(Long id);
     StudentResponse findByEmail(String email);
-
+    StudentResponse findOrCreateByEmail(String email, String firstName, String lastName);
 }

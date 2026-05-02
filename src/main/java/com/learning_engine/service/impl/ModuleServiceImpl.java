@@ -1,12 +1,12 @@
 package com.learning_engine.service.impl;
 
 import com.learning_engine.dto.request.ModuleRequest;
-import com.learning_engine.dto.response.LessonResponse;
 import com.learning_engine.dto.response.ModuleResponse;
+import com.learning_engine.dto.response.PagedResponse;
 import com.learning_engine.entity.Course;
 import com.learning_engine.entity.CourseModule;
+import com.learning_engine.mapper.ModuleMapper;
 import com.learning_engine.repository.CourseRepository;
-import com.learning_engine.repository.LessonProgressRepository;
 import com.learning_engine.repository.ModuleRepository;
 import com.learning_engine.service.EnrollmentService;
 import com.learning_engine.service.ModuleService;
@@ -21,33 +21,33 @@ import java.util.List;
 public class ModuleServiceImpl implements ModuleService {
 
     private final ModuleRepository moduleRepository;
+    private final CourseRepository courseRepository;
     private final EnrollmentService enrollmentService;
-    private final LessonProgressRepository lessonProgressRepository;
-    private final CourseRepository courseRepository; // Agregado para buscar el curso
+    private final ModuleMapper moduleMapper;
 
     @Override
     public List<ModuleResponse> findByCourse(Long courseId, Long studentId) {
         boolean hasAccess = enrollmentService.hasActiveEnrollment(studentId, courseId);
 
-        return moduleRepository.findByCourseIdOrderByOrderIndexAsc(courseId)
+        List<ModuleResponse> modules = moduleRepository
+                .findByCourseIdOrderByOrderIndexAsc(courseId)
                 .stream()
-                .map(module -> toResponse(module, studentId, hasAccess))
+                .map(module -> moduleMapper.toResponse(module, studentId, hasAccess))
                 .toList();
+
+        return modules;
     }
 
-    @Transactional
     @Override
+    @Transactional
     public ModuleResponse createModule(Long courseId, ModuleRequest request) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new RuntimeException("Course not found"));
 
-        CourseModule module = new CourseModule();
+        CourseModule module = moduleMapper.toEntity(request);
         module.setCourse(course);
-        module.setTitle(request.getTitle());
-        module.setDescription(request.getDescription());
-        module.setOrderIndex(request.getOrderIndex());
 
-        return toAdminResponse(moduleRepository.save(module));
+        return moduleMapper.toAdminResponse(moduleRepository.save(module));
     }
 
     @Override
@@ -60,11 +60,7 @@ public class ModuleServiceImpl implements ModuleService {
             throw new RuntimeException("Module does not belong to this course");
         }
 
-        if (request.getTitle() != null) module.setTitle(request.getTitle());
-        if (request.getDescription() != null) module.setDescription(request.getDescription());
-        if (request.getOrderIndex() != null) module.setOrderIndex(request.getOrderIndex());
-
-        return toAdminResponse(moduleRepository.save(module));
+        return moduleMapper.toAdminResponse(moduleRepository.save(moduleMapper.updateEntity(module, request)));
     }
 
     @Override
@@ -76,35 +72,5 @@ public class ModuleServiceImpl implements ModuleService {
             throw new RuntimeException("Module does not belong to this course");
         }
         moduleRepository.delete(module);
-    }
-
-    private ModuleResponse toResponse(CourseModule module, Long studentId, boolean hasAccess) {
-        List<LessonResponse> lessons = module.getLessons() != null ? module.getLessons()
-                .stream()
-                .map(lesson -> {
-                    boolean canAccess = hasAccess || Boolean.TRUE.equals(lesson.getFreePreview());
-                    boolean completed = canAccess && lessonProgressRepository
-                            .existsByStudentIdAndLessonIdAndCompletedTrue(studentId, lesson.getId());
-                    return new LessonResponse(
-                            lesson.getId(), lesson.getTitle(),
-                            canAccess ? lesson.getContent() : null,
-                            canAccess ? lesson.getVideoUrl() : null,
-                            lesson.getDurationMinutes(), lesson.getOrderIndex(),
-                            lesson.getFreePreview(), completed
-                    );
-                })
-                .toList() : List.of();
-
-        return new ModuleResponse(module.getId(), module.getTitle(), module.getDescription(), module.getOrderIndex(), lessons);
-    }
-
-    private ModuleResponse toAdminResponse(CourseModule module) {
-        return new ModuleResponse(
-                module.getId(),
-                module.getTitle(),
-                module.getDescription(),
-                module.getOrderIndex(),
-                List.of()
-        );
     }
 }

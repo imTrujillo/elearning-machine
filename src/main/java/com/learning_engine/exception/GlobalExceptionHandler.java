@@ -18,7 +18,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(HttpClientErrorException.class)
-    public ResponseEntity<ErrorDto> handleHttpClientlError(HttpClientErrorException ex, WebRequest request){
+    public ResponseEntity<ErrorDto> handleHttpClientError(HttpClientErrorException ex, WebRequest request){
         ErrorDto error = new ErrorDto(ex.getStatusCode().value(), ex.getStatusText(), ex.getMessage(), request.getDescription(false));
 
         return new ResponseEntity<>(error, ex.getStatusCode());

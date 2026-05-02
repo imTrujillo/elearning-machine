@@ -1,7 +1,9 @@
 package com.learning_engine.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public record CategorySummaryResponse(
-        Long id,
-        String name,
-        String slug
+        @JsonProperty("id") Long id,
+        @JsonProperty("name") String name,
+        @JsonProperty("slug") String slug
 ) {}

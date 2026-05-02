@@ -1,13 +1,15 @@
 package com.learning_engine.service.impl;
 
+import com.learning_engine.dto.ModuleCompletedAt;
 import com.learning_engine.dto.request.LessonRequest;
 import com.learning_engine.dto.response.LessonProgressResponse;
 import com.learning_engine.dto.response.LessonResponse;
-import com.learning_engine.dto.ModuleCompletedAt;
+import com.learning_engine.dto.response.PagedResponse;
 import com.learning_engine.entity.CourseModule;
 import com.learning_engine.entity.Lesson;
 import com.learning_engine.entity.LessonProgress;
 import com.learning_engine.entity.Student;
+import com.learning_engine.mapper.LessonMapper;
 import com.learning_engine.repository.*;
 import com.learning_engine.service.LessonService;
 import jakarta.transaction.Transactional;
@@ -18,7 +20,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +31,7 @@ public class LessonServiceImpl implements LessonService {
     private final ModuleRepository moduleRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final RabbitTemplate rabbitTemplate;
+    private final LessonMapper lessonMapper;
 
     @Value("${rabbitmq.exchanges.modules}")
     private String modulesExchange;
@@ -93,8 +95,12 @@ public class LessonServiceImpl implements LessonService {
 
     @Override
     public List<LessonResponse> getLessonsByModuleId(Long moduleId) {
-        return lessonRepository.findByModuleIdOrderByOrderIndexAsc(moduleId)
-                .stream().map(this::mapToResponse).collect(Collectors.toList());
+        List<LessonResponse> lessons = lessonRepository
+                .findByModuleIdOrderByOrderIndexAsc(moduleId)
+                .stream()
+                .map(lessonMapper::toResponse)
+                .toList();
+        return lessons;
     }
 
     @Override
@@ -103,16 +109,10 @@ public class LessonServiceImpl implements LessonService {
         CourseModule module = moduleRepository.findById(moduleId)
                 .orElseThrow(() -> new RuntimeException("Module not found"));
 
-        Lesson lesson = new Lesson();
+        Lesson lesson = lessonMapper.toEntity(request);
         lesson.setModule(module);
-        lesson.setTitle(request.getTitle());
-        lesson.setContent(request.getContent());
-        lesson.setVideoUrl(request.getVideoUrl());
-        lesson.setDurationMinutes(request.getDurationMinutes());
-        lesson.setOrderIndex(request.getOrderIndex());
-        lesson.setFreePreview(request.isFreePreview());
 
-        return mapToResponse(lessonRepository.save(lesson));
+        return lessonMapper.toResponse(lessonRepository.save(lesson));
     }
 
     @Override
@@ -125,13 +125,7 @@ public class LessonServiceImpl implements LessonService {
             throw new RuntimeException("Lesson does not belong to this module");
         }
 
-        if (request.getTitle() != null) lesson.setTitle(request.getTitle());
-        if (request.getContent() != null) lesson.setContent(request.getContent());
-        if (request.getVideoUrl() != null) lesson.setVideoUrl(request.getVideoUrl());
-        if (request.getDurationMinutes() != null) lesson.setDurationMinutes(request.getDurationMinutes());
-        if (request.getOrderIndex() != null) lesson.setOrderIndex(request.getOrderIndex());
-
-        return mapToResponse(lessonRepository.save(lesson));
+        return lessonMapper.toResponse(lessonRepository.save(lessonMapper.updateEntity(lesson, request)));
     }
 
     @Override
@@ -143,18 +137,5 @@ public class LessonServiceImpl implements LessonService {
             throw new RuntimeException("Lesson does not belong to this module");
         }
         lessonRepository.delete(lesson);
-    }
-
-    private LessonResponse mapToResponse(Lesson lesson) {
-        return new LessonResponse(
-                lesson.getId(),
-                lesson.getTitle(),
-                lesson.getContent(),
-                lesson.getVideoUrl(),
-                lesson.getDurationMinutes(),
-                lesson.getOrderIndex(),
-                lesson.getFreePreview() != null ? lesson.getFreePreview() : false,
-                false
-        );
     }
 }

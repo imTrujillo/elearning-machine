@@ -3,15 +3,13 @@ package com.learning_engine.controller;
 import com.learning_engine.dto.request.CourseRequest;
 import com.learning_engine.dto.response.CourseResponse;
 import com.learning_engine.dto.response.LearningApiResponse;
-import com.learning_engine.dto.response.ModuleResponse;
+import com.learning_engine.dto.response.PagedResponse;
 import com.learning_engine.service.CourseService;
-import com.learning_engine.service.ModuleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -26,7 +24,7 @@ import java.util.List;
 @Tag(name = "Cursos", description = "Catálogo de cursos y sincronización")
 public class CourseController {
 
-    
+
     private final CourseService courseService;
 
     @Operation(summary = "Catálogo paginado de cursos")
@@ -35,13 +33,13 @@ public class CourseController {
             @ApiResponse(responseCode = "204", description = "Sin cursos")
     })
     @GetMapping
-    public ResponseEntity<LearningApiResponse<Page<CourseResponse>>> findAll(
+    public ResponseEntity<LearningApiResponse<PagedResponse<CourseResponse>>> findAll(
             @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<CourseResponse> courses = category != null
+        PagedResponse<CourseResponse> courses = category != null
                 ? courseService.findByCategory(category, pageable)
                 : courseService.findAll(pageable);
 
@@ -61,10 +59,10 @@ public class CourseController {
             @ApiResponse(responseCode = "502", description = "WordPress no disponible")
     })
     @PostMapping("/sync")
-    public ResponseEntity<LearningApiResponse<List<CourseResponse>>> sync() {
-        List<CourseResponse> synced = courseService.syncFromWordpress();
+    public ResponseEntity<LearningApiResponse<PagedResponse<CourseResponse>>> sync() {
+        PagedResponse<CourseResponse> synced = courseService.syncFromWordpress();
         return ResponseEntity.ok(
-                LearningApiResponse.success("Sincronizados " + synced.size() + " cursos", synced));
+                LearningApiResponse.success("Cursos sincronizados", synced));
     }
 
     @Operation(summary = "Crear un nuevo curso")
