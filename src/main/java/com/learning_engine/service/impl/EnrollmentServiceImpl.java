@@ -10,6 +10,7 @@ import com.learning_engine.enums.EnrollmentStatus;
 import com.learning_engine.mapper.EnrollmentMapper;
 import com.learning_engine.repository.CourseRepository;
 import com.learning_engine.repository.EnrollmentRepository;
+import com.learning_engine.repository.ModuleRepository;
 import com.learning_engine.repository.StudentRepository;
 import com.learning_engine.service.EnrollmentService;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     private final EnrollmentRepository enrollmentRepository;
     private final StudentRepository studentRepository;
     private final CourseRepository courseRepository;
+    private final ModuleRepository moduleRepository;
     private final RabbitTemplate rabbitTemplate;
     private final EnrollmentMapper enrollmentMapper;
 
@@ -74,13 +76,15 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         enrollment.setStatus(EnrollmentStatus.ACTIVE);
         enrollment.setActivatedAt(LocalDateTime.now());
         Enrollment saved = enrollmentRepository.save(enrollment);
+        int courseTotalModules = moduleRepository.countByCourseId(saved.getCourse().getId());
 
         EnrollmentActivatedEvent event = new EnrollmentActivatedEvent(
                 saved.getId(),
-                saved.getStudent().getId(),
                 saved.getStudent().getEmail(),
+                saved.getStudent().getFirstName() + " " + saved.getStudent().getLastName(),
                 saved.getCourse().getId(),
                 saved.getCourse().getTitle(),
+                courseTotalModules,
                 saved.getActivatedAt()
         );
 

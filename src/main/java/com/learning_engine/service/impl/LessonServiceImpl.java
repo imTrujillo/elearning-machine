@@ -5,10 +5,7 @@ import com.learning_engine.dto.request.LessonRequest;
 import com.learning_engine.dto.response.LessonProgressResponse;
 import com.learning_engine.dto.response.LessonResponse;
 import com.learning_engine.dto.response.PagedResponse;
-import com.learning_engine.entity.CourseModule;
-import com.learning_engine.entity.Lesson;
-import com.learning_engine.entity.LessonProgress;
-import com.learning_engine.entity.Student;
+import com.learning_engine.entity.*;
 import com.learning_engine.mapper.LessonMapper;
 import com.learning_engine.repository.*;
 import com.learning_engine.service.LessonService;
@@ -25,7 +22,6 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class LessonServiceImpl implements LessonService {
-
     private final LessonRepository lessonRepository;
     private final LessonProgressRepository lessonProgressRepository;
     private final StudentRepository studentRepository;
@@ -67,19 +63,31 @@ public class LessonServiceImpl implements LessonService {
         lessonProgressRepository.save(progress);
 
         CourseModule module = lesson.getModule();
-        int totalLessons = module.getLessons().size();
-        int completedLessons = lessonProgressRepository
-                .countCompletedByStudentAndModule(studentId, module.getId());
 
-        boolean moduleCompleted = totalLessons > 0 && completedLessons >= totalLessons;
+        int moduleTotalLessons = module.getLessons().size();
+        int moduleCompletedLessons = lessonProgressRepository
+                .countCompletedByStudentAndModule(studentId, module.getId());
+        boolean moduleCompleted = moduleTotalLessons > 0
+                && moduleCompletedLessons >= moduleTotalLessons;
 
         if (moduleCompleted) {
+            Enrollment enrollment = enrollmentRepository
+                    .findByStudentIdAndCourseId(studentId, courseId)
+                    .orElseThrow(() -> new RuntimeException("Inscripción no encontrada"));
+
+            int totalLessons = lessonRepository.countTotalLessonsByCourse(courseId);
+            int completedLessons = lessonProgressRepository
+                    .countCompletedByStudentAndCourse(studentId, courseId);
+            int completionPercent = totalLessons > 0
+                    ? (completedLessons * 100 / totalLessons) : 0;
+
             ModuleCompletedAt event = new ModuleCompletedAt(
+                    enrollment.getId(),
                     module.getId(),
                     module.getTitle(),
                     courseId,
-                    studentId,
                     student.getEmail(),
+                    completionPercent,
                     LocalDateTime.now()
             );
             rabbitTemplate.convertAndSend(modulesExchange, moduleCompletedKey, event);

@@ -1,5 +1,6 @@
 package com.learning_engine.repository;
 
+import com.learning_engine.entity.Course;
 import com.learning_engine.entity.Enrollment;
 import com.learning_engine.enums.EnrollmentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,7 +15,7 @@ import java.util.Optional;
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     List<Enrollment> findByStudentId(Long studentId);
 
-    List<Enrollment> findByStudentIdAndStatus(Long studentId, EnrollmentStatus status);
+    Optional<Enrollment> findByStudentIdAndCourseId(Long studentId, Long courseId);
 
     boolean existsByStudentIdAndCourseId(Long studentId, Long courseId);
 

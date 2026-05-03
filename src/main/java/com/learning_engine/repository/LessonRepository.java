@@ -18,4 +18,11 @@ public interface LessonRepository extends JpaRepository<Lesson, Long> {
     Integer countByCourseId(@Param("courseId") Long courseId);
 
     List<Lesson> findByModuleIdAndFreePreviewTrue(Long moduleId);
+
+    @Query("""
+    SELECT COUNT(l) FROM Lesson l
+    JOIN l.module m
+    WHERE m.course.id = :courseId
+""")
+    int countTotalLessonsByCourse(@Param("courseId") Long courseId);
 }
