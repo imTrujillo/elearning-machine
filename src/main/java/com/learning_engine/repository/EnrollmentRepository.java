@@ -1,6 +1,5 @@
 package com.learning_engine.repository;
 
-import com.learning_engine.entity.Course;
 import com.learning_engine.entity.Enrollment;
 import com.learning_engine.enums.EnrollmentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,13 +12,29 @@ import java.util.Optional;
 
 @Repository
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
+
     List<Enrollment> findByStudentId(Long studentId);
 
     Optional<Enrollment> findByStudentIdAndCourseId(Long studentId, Long courseId);
 
+    Optional<Enrollment> findByStudentEmail(String email);
+
     boolean existsByStudentIdAndCourseId(Long studentId, Long courseId);
 
-    Optional<Enrollment> findByWooOrderId(Long wooOrderId);
+    boolean existsByStudentEmailAndCourseId(String email, Long courseId);
+
+    Optional<Enrollment> findFirstByWooOrderId(Long wooOrderId);
+
+    Optional<Enrollment> findFirstByStudentEmailAndCourseId(String email, Long courseId); 
+
+    @Query("""
+            SELECT COUNT(e) > 0 FROM Enrollment e
+            WHERE e.student.email = :email
+            AND e.course.id = :courseId
+            AND e.status = 'ACTIVE'
+            """)
+    boolean hasActiveEnrollmentByEmail(@Param("email") String email,
+                                       @Param("courseId") Long courseId); // ← nuevo
 
     @Query("""
             SELECT COUNT(e) > 0 FROM Enrollment e

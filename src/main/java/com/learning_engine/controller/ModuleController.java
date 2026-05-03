@@ -33,14 +33,10 @@ public class ModuleController {
     @GetMapping
     public ResponseEntity<LearningApiResponse<List<ModuleResponse>>> getModules(
             @PathVariable Long courseId,
-            @RequestParam String studentEmail){
-
-        Long studentId = studentService.findByEmail(studentEmail).id();
-
+            @RequestParam String studentEmail) {
         return ResponseEntity.ok(
                 LearningApiResponse.success("Módulos obtenidos",
-                        moduleService.findByCourse(courseId, studentId))
-        );
+                        moduleService.findByCourse(courseId, studentEmail)));
     }
 
     @PostMapping

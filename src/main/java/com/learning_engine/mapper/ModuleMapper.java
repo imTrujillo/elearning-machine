@@ -4,7 +4,9 @@ import com.learning_engine.dto.request.ModuleRequest;
 import com.learning_engine.dto.response.LessonResponse;
 import com.learning_engine.dto.response.ModuleResponse;
 import com.learning_engine.entity.CourseModule;
+import com.learning_engine.entity.Student;
 import com.learning_engine.repository.LessonProgressRepository;
+import com.learning_engine.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -13,21 +15,27 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class ModuleMapper {
-
     private final LessonMapper lessonMapper;
     private final LessonProgressRepository lessonProgressRepository;
+    private final StudentRepository studentRepository;
 
-    // Used for public/student view — respects enrollment access and tracks progress
-    public ModuleResponse toResponse(CourseModule module, Long studentId, boolean hasAccess) {
+    public ModuleResponse toResponse(CourseModule module, String studentEmail, boolean hasAccess) {
+
+        Long studentId = studentRepository.findByEmail(studentEmail)
+                .map(Student::getId)
+                .orElse(null);
         List<LessonResponse> lessons = module.getLessons() != null
                 ? module.getLessons().stream()
-                        .map(lesson -> {
-                            boolean canAccess = hasAccess || Boolean.TRUE.equals(lesson.getFreePreview());
-                            boolean completed = canAccess && lessonProgressRepository
-                                    .existsByStudentIdAndLessonIdAndCompletedTrue(studentId, lesson.getId());
-                            return lessonMapper.toResponse(lesson, canAccess, completed);
-                        })
-                        .toList()
+                .map(lesson -> {
+                    boolean canAccess = hasAccess || Boolean.TRUE.equals(lesson.getFreePreview());
+                    boolean completed = canAccess
+                            && studentId != null
+                            && lessonProgressRepository
+                            .existsByStudentIdAndLessonIdAndCompletedTrue(
+                                    studentId, lesson.getId());
+                    return lessonMapper.toResponse(lesson, canAccess, completed);
+                })
+                .toList()
                 : List.of();
 
         return new ModuleResponse(
@@ -39,7 +47,6 @@ public class ModuleMapper {
         );
     }
 
-    // Used for admin create/update — no access control, no progress
     public ModuleResponse toAdminResponse(CourseModule module) {
         return new ModuleResponse(
                 module.getId(),

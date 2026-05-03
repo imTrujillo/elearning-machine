@@ -26,16 +26,14 @@ public class ModuleServiceImpl implements ModuleService {
     private final ModuleMapper moduleMapper;
 
     @Override
-    public List<ModuleResponse> findByCourse(Long courseId, Long studentId) {
-        boolean hasAccess = enrollmentService.hasActiveEnrollment(studentId, courseId);
+    public List<ModuleResponse> findByCourse(Long courseId, String studentEmail) {
+        boolean hasAccess = enrollmentService.hasActiveEnrollmentByEmail(studentEmail, courseId);
 
-        List<ModuleResponse> modules = moduleRepository
+        return moduleRepository
                 .findByCourseIdOrderByOrderIndexAsc(courseId)
                 .stream()
-                .map(module -> moduleMapper.toResponse(module, studentId, hasAccess))
+                .map(module -> moduleMapper.toResponse(module, studentEmail, hasAccess)) // ← email
                 .toList();
-
-        return modules;
     }
 
     @Override
