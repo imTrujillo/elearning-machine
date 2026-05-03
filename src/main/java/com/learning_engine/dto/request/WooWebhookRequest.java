@@ -13,4 +13,13 @@ public record WooWebhookRequest(
             String name,
             Integer quantity
     ){ }
+
+    public static WooWebhookRequest fromActivation(Long wooOrderId, String customerEmail){
+        return new WooWebhookRequest(
+                wooOrderId,
+                "completed",
+                customerEmail,
+                List.of()
+        );
+    }
 }

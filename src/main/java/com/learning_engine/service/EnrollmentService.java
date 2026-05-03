@@ -11,5 +11,6 @@ public interface EnrollmentService {
     List<EnrollmentResponse> findByStudent(Long studentId);
     List<EnrollmentResponse> findByStudentEmail(String email);
     EnrollmentResponse processWebhook(WooWebhookRequest request);
+    EnrollmentResponse activateEnrollment(String customerEmail, Long courseId);
     boolean hasActiveEnrollmentByEmail(String studentEmail, Long courseId);
 }

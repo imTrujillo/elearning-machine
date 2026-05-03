@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,8 +43,6 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Value("${rabbitmq.routing-keys.enrollment-activated}")
     private String enrollmentActivatedKey;
 
-    // ─── POST /api/enrollments ─────────────────────────────────────────────────
-    // Solo crea en PENDING_PAYMENT. El webhook activa.
     @Override
     @Transactional
     public EnrollmentResponse create(EnrollmentRequest request) {
@@ -64,46 +63,49 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                 .student(student)
                 .course(course)
                 .status(EnrollmentStatus.PENDING_PAYMENT)
-                // wooOrderId = null hasta que llegue el webhook
                 .build();
 
         return enrollmentMapper.toResponse(enrollmentRepository.save(enrollment));
     }
 
-    // ─── POST /api/woocommerce/webhook ─────────────────────────────────────────
-    // Encuentra o crea al estudiante, encuentra el curso por wooProductId,
-    // encuentra o crea la inscripción, asigna el wooOrderId y activa.
     @Override
     @Transactional
     public EnrollmentResponse processWebhook(WooWebhookRequest request) {
-        // 1. Idempotencia: si esta orden ya fue procesada, devolver la inscripción
         var existing = enrollmentRepository.findFirstByWooOrderId(request.id());
         if (existing.isPresent()) {
             log.info("Orden {} ya procesada, ignorando.", request.id());
             return enrollmentMapper.toResponse(existing.get());
         }
 
-        // 2. Encontrar o crear el estudiante por email
         Student student = studentRepository.findByEmail(request.customerEmail())
                 .orElseGet(() -> {
                     log.info("Estudiante no encontrado, creando: {}", request.customerEmail());
+                    String namePart = request.customerEmail().contains("@")
+                            ? request.customerEmail().split("@")[0]
+                            : request.customerEmail();
                     return studentRepository.save(Student.builder()
                             .email(request.customerEmail())
-                            .firstName(request.customerEmail().split("@")[0])
+                            .firstName(namePart)
                             .lastName("")
                             .build());
                 });
 
-        // 3. Encontrar el curso por wooProductId (primer producto del pedido)
-        if (request.lineItems() == null || request.lineItems().isEmpty()) {
-            throw new RuntimeException("El pedido no tiene productos");
+        Course course;
+        if (request.lineItems() != null && !request.lineItems().isEmpty()) {
+            Long wooProductId = request.lineItems().get(0).productId();
+            course = courseRepository.findByWooProductId(wooProductId)
+                    .orElseThrow(() -> new RuntimeException(
+                            "Curso no encontrado para producto WooCommerce: " + wooProductId));
+        } else {
+            Enrollment pending = enrollmentRepository
+                    .findLatestPendingByStudentEmail(
+                            student.getEmail(),
+                            EnrollmentStatus.PENDING_PAYMENT)
+                    .orElseThrow(() -> new RuntimeException(
+                            "No hay inscripción pendiente de pago para: " + student.getEmail()));
+            course = pending.getCourse();
         }
-        Long wooProductId = request.lineItems().get(0).productId();
-        Course course = courseRepository.findByWooProductId(wooProductId)
-                .orElseThrow(() -> new RuntimeException(
-                        "Curso no encontrado para producto WooCommerce: " + wooProductId));
 
-        // 4. Buscar inscripción existente (PENDING_PAYMENT) o crear una nueva
         Enrollment enrollment = enrollmentRepository
                 .findFirstByStudentEmailAndCourseId(student.getEmail(), course.getId())
                 .orElseGet(() -> {
@@ -116,18 +118,25 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                             .build();
                 });
 
-        // 5. Activar
         if (enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
-            log.info("Inscripción ya activa para {} en curso {}", student.getEmail(), course.getTitle());
+            log.info("Inscripción ya activa para {} en curso {}",
+                    student.getEmail(), course.getTitle());
             return enrollmentMapper.toResponse(enrollment);
         }
 
-        enrollment.setWooOrderId(request.id()); // ← el ID secuencial de WooCommerce
+        enrollment.setWooOrderId(request.id());
         enrollment.setStatus(EnrollmentStatus.ACTIVE);
         enrollment.setActivatedAt(LocalDateTime.now());
-        Enrollment saved = enrollmentRepository.save(enrollment);
 
-        // 6. Publicar evento a Group B
+        Enrollment saved;
+        try {
+            saved = enrollmentRepository.save(enrollment);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Conflicto al guardar orden {}, reintentando búsqueda.", request.id());
+            saved = enrollmentRepository.findFirstByWooOrderId(request.id())
+                    .orElseThrow(() -> new RuntimeException("Error de concurrencia al activar inscripción"));
+        }
+
         int totalModules = moduleRepository.countByCourseId(course.getId());
         EnrollmentActivatedEvent event = new EnrollmentActivatedEvent(
                 saved.getId(),
@@ -140,6 +149,57 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         );
         rabbitTemplate.convertAndSend(enrollmentsExchange, enrollmentActivatedKey, event);
         log.info("Inscripción activada y evento publicado: {}", saved.getId());
+
+        return enrollmentMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public EnrollmentResponse activateEnrollment(String customerEmail, Long courseId) {
+
+        // 1. Buscar estudiante
+        Student student = studentRepository.findByEmail(customerEmail)
+                .orElseThrow(() -> new RuntimeException(
+                        "Estudiante no encontrado: " + customerEmail));
+
+        // 2. Buscar curso
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException(
+                        "Curso no encontrado: " + courseId));
+
+        // 3. Buscar la inscripción exacta
+        Enrollment enrollment = enrollmentRepository
+                .findFirstByStudentEmailAndCourseId(customerEmail, courseId)
+                .orElseThrow(() -> new RuntimeException(
+                        "No hay inscripción para " + customerEmail + " en curso " + courseId));
+
+        // 4. Guardia: ya activa
+        if (enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
+            log.info("Inscripción ya activa para {} en curso {}", customerEmail, course.getTitle());
+            return enrollmentMapper.toResponse(enrollment);
+        }
+
+        // 5. Generar wooOrderId sintético — prefijo MANUAL + timestamp para evitar colisiones
+        //    Usamos negativo para que nunca colisione con IDs reales de WooCommerce (siempre positivos)
+        long syntheticOrderId = -(System.currentTimeMillis());
+        enrollment.setWooOrderId(syntheticOrderId);
+        enrollment.setStatus(EnrollmentStatus.ACTIVE);
+        enrollment.setActivatedAt(LocalDateTime.now());
+        Enrollment saved = enrollmentRepository.save(enrollment);
+
+        // 6. Publicar evento
+        int totalModules = moduleRepository.countByCourseId(course.getId());
+        EnrollmentActivatedEvent event = new EnrollmentActivatedEvent(
+                saved.getId(),
+                saved.getStudent().getEmail(),
+                saved.getStudent().getFirstName() + " " + saved.getStudent().getLastName(),
+                saved.getCourse().getId(),
+                saved.getCourse().getTitle(),
+                totalModules,
+                saved.getActivatedAt()
+        );
+        rabbitTemplate.convertAndSend(enrollmentsExchange, enrollmentActivatedKey, event);
+        log.info("Inscripción activada manualmente, synthetic orderId: {}", syntheticOrderId);
 
         return enrollmentMapper.toResponse(saved);
     }

@@ -45,5 +45,11 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     boolean hasActiveEnrollment(@Param("studentId") Long studentId,
                                 @Param("courseId") Long courseId);
 
+    @Query("SELECT e FROM Enrollment e WHERE e.student.email = :email AND e.status = :status ORDER BY e.enrolledAt DESC")
+    Optional<Enrollment> findLatestPendingByStudentEmail(
+            @Param("email") String email,
+            @Param("status") EnrollmentStatus status
+    );
+
     List<Enrollment> findByStatus(EnrollmentStatus status);
 }

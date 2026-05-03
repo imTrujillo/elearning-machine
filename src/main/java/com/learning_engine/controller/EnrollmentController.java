@@ -56,6 +56,17 @@ public class EnrollmentController {
                         enrollmentService.processWebhook(request)));
     }
 
+    @Operation(summary = "Activar inscripción manualmente (sin pago WooCommerce)")
+    @PostMapping("/woocommerce/activate")
+    public ResponseEntity<LearningApiResponse<EnrollmentResponse>> activate(
+            @RequestParam String customerEmail,
+            @RequestParam Long courseId) {
+
+        return ResponseEntity.ok(
+                LearningApiResponse.success("Inscripción activada",
+                        enrollmentService.activateEnrollment(customerEmail, courseId)));
+    }
+
     @Operation(summary = "Verificar inscripción activa por email")
     @GetMapping("/enrollments/verify")
     public ResponseEntity<LearningApiResponse<Boolean>> verify(
