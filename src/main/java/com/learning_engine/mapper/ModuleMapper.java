@@ -21,9 +21,11 @@ public class ModuleMapper {
 
     public ModuleResponse toResponse(CourseModule module, String studentEmail, boolean hasAccess) {
 
-        Long studentId = studentRepository.findByEmail(studentEmail)
-                .map(Student::getId)
-                .orElse(null);
+        Long studentId = (studentEmail == null || studentEmail.isBlank())
+                ? null
+                : studentRepository.findByEmail(studentEmail.trim())
+                        .map(Student::getId)
+                        .orElse(null);
         List<LessonResponse> lessons = module.getLessons() != null
                 ? module.getLessons().stream()
                 .map(lesson -> {

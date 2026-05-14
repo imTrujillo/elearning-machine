@@ -173,10 +173,18 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                 .orElseThrow(() -> new RuntimeException(
                         "No hay inscripción para " + customerEmail + " en curso " + courseId));
 
-        // 4. Guardia: ya activa
+        // 4. Guardia: ya activa (idempotente; no republicar evento)
         if (enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
             log.info("Inscripción ya activa para {} en curso {}", customerEmail, course.getTitle());
             return enrollmentMapper.toResponse(enrollment);
+        }
+
+        // Solo pendientes de pago pasan a activa; evita "recomprar" y reactivar COMPLETED/SUSPENDED.
+        if (enrollment.getStatus() != EnrollmentStatus.PENDING_PAYMENT) {
+            throw new RuntimeException(
+                    "No se puede activar: la inscripción no está pendiente de pago (estado actual: "
+                            + enrollment.getStatus()
+                            + "). No tiene sentido repetir la compra para este curso.");
         }
 
         // 5. Generar wooOrderId sintético — prefijo MANUAL + timestamp para evitar colisiones
@@ -211,13 +219,17 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<EnrollmentResponse> findByStudentEmail(String email) {
-        return enrollmentRepository.findByStudentEmail(email)
+        return enrollmentRepository.findByStudent_EmailOrderByEnrolledAtDesc(email)
                 .stream().map(enrollmentMapper::toResponse).toList();
     }
 
     @Override
     public boolean hasActiveEnrollmentByEmail(String studentEmail, Long courseId) {
-        return enrollmentRepository.hasActiveEnrollmentByEmail(studentEmail, courseId);
+        if (studentEmail == null || studentEmail.isBlank()) {
+            return false;
+        }
+        return enrollmentRepository.hasActiveEnrollmentByEmail(studentEmail.trim(), courseId);
     }
 }

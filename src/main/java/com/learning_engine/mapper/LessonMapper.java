@@ -21,7 +21,8 @@ public class LessonMapper {
                 lesson.getDurationMinutes(),
                 lesson.getOrderIndex(),
                 lesson.getFreePreview() != null ? lesson.getFreePreview() : false,
-                completed
+                completed,
+                true
         );
     }
 
@@ -35,7 +36,8 @@ public class LessonMapper {
                 lesson.getDurationMinutes(),
                 lesson.getOrderIndex(),
                 lesson.getFreePreview() != null ? lesson.getFreePreview() : false,
-                completed
+                completed,
+                canAccess
         );
     }
 

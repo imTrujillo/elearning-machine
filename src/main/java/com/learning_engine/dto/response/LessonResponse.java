@@ -8,5 +8,6 @@ public record LessonResponse(
         Integer durationMinutes,
         Integer orderIndex,
         Boolean freePreview,
-        Boolean completed
+        Boolean completed,
+        Boolean canAccess
 ) { }

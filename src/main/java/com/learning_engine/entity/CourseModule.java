@@ -28,6 +28,7 @@ public class CourseModule {
     private Course course;
 
     @OneToMany(mappedBy = "module", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OrderBy("orderIndex ASC")
     @Builder.Default
     private List<Lesson> lessons = new ArrayList<>();
 }

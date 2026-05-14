@@ -27,7 +27,9 @@ public class ModuleServiceImpl implements ModuleService {
 
     @Override
     public List<ModuleResponse> findByCourse(Long courseId, String studentEmail) {
-        boolean hasAccess = enrollmentService.hasActiveEnrollmentByEmail(studentEmail, courseId);
+        boolean hasAccess = studentEmail != null
+                && !studentEmail.isBlank()
+                && enrollmentService.hasActiveEnrollmentByEmail(studentEmail.trim(), courseId);
 
         return moduleRepository
                 .findByCourseIdOrderByOrderIndexAsc(courseId)

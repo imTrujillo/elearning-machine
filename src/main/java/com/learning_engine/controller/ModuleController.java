@@ -3,19 +3,13 @@ package com.learning_engine.controller;
 import com.learning_engine.dto.request.ModuleRequest;
 import com.learning_engine.dto.response.LearningApiResponse;
 import com.learning_engine.dto.response.ModuleResponse;
-import com.learning_engine.dto.response.PagedResponse;
 import com.learning_engine.service.ModuleService;
-import com.learning_engine.service.StudentService;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
 
 @RestController
 @RequestMapping("/api/courses/{courseId}/modules")
@@ -23,17 +17,15 @@ import java.util.List;
 public class ModuleController {
 
     private final ModuleService moduleService;
-    private final StudentService studentService;
 
-    public ModuleController(ModuleService moduleService, StudentService studentService) {
+    public ModuleController(ModuleService moduleService) {
         this.moduleService = moduleService;
-        this.studentService = studentService;
     }
 
     @GetMapping
     public ResponseEntity<LearningApiResponse<List<ModuleResponse>>> getModules(
             @PathVariable Long courseId,
-            @RequestParam String studentEmail) {
+            @RequestParam(required = false) String studentEmail) {
         return ResponseEntity.ok(
                 LearningApiResponse.success("Módulos obtenidos",
                         moduleService.findByCourse(courseId, studentEmail)));
