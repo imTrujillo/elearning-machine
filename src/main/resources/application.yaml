@@ -38,6 +38,10 @@ wordpress:
   base-url: ${WORDPRESS_URL}
   username: ${WORDPRESS_USERNAME}
   password: ${WORDPRESS_PASSWORD}
+  # true = /index.php?rest_route=... (Docker con permalinks "simples"); false = /wp-json/... tras guardar enlaces bonitos en WP
+  plain-rest: ${WORDPRESS_PLAIN_REST:true}
+  # false = leer entradas públicas sin Application Password (útil si la clave WP falla en local)
+  auth-enabled: ${WORDPRESS_AUTH_ENABLED:true}
 
 woocommerce:
   consumer-key: ${WOO_CONSUMER_KEY}

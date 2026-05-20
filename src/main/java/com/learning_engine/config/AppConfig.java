@@ -23,13 +23,17 @@ public class AppConfig {
     public WebClient wordpressWebClient(
             @Value("${wordpress.base-url}") String baseUrl,
             @Value("${wordpress.username}") String username,
-            @Value("${wordpress.password}") String password
-    ){
-        return WebClient.builder().
-                baseUrl(baseUrl)
-                .defaultHeaders(h -> h.setBasicAuth(username, password.replace(" ","")))
-                .codecs(c -> c.defaultCodecs().maxInMemorySize(2 * 1024 * 1024))
-                .build();
+            @Value("${wordpress.password}") String password,
+            @Value("${wordpress.auth-enabled:true}") boolean authEnabled
+    ) {
+        WebClient.Builder builder = WebClient.builder()
+                .baseUrl(baseUrl)
+                .codecs(c -> c.defaultCodecs().maxInMemorySize(2 * 1024 * 1024));
+        if (authEnabled && password != null && !password.isBlank()) {
+            String appPassword = password.replace(" ", "");
+            builder.defaultHeaders(h -> h.setBasicAuth(username, appPassword));
+        }
+        return builder.build();
     }
 
     @Bean("wooWebClient")

@@ -1,61 +1,136 @@
-version: '3.8'
+# Infra (MySQL engine, Redis, WordPress+Woo):  docker compose up -d
+# Todo incluido learning-engine en Docker:     docker compose --profile app up -d --build
+#
+# IntelliJ: levanta solo infra con el primer comando y ejecuta LearningEngineApplication.
+# URLs host: engine :8081 | WP :8080 | MySQL engine :3306 | MySQL WP :3307
+# RabbitMQ: broker remoto del inge (84.46.241.34), sin contenedor local.
 
 services:
 
-  mysql:
-    image: mysql:8.0
-    container_name: learning-mysql
+  learning-engine:
+    profiles: ["app"]
+    build: .
+    container_name: learning-engine
+    env_file: .env
+    ports:
+      - "8081:8081"
     environment:
-      MYSQL_ROOT_PASSWORD: root123
-      MYSQL_DATABASE: learning_engine
-      MYSQL_USER: springboot
-      MYSQL_PASSWORD: springboot123
-    ports:
-      - "3307:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
-    networks:
-      - learning-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    container_name: learning-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    networks:
-      - learning-network
-    command: redis-server --appendonly yes
-
-  wordpress:
-    image: wordpress:latest
-    container_name: learning-wordpress
-    environment:
-      WORDPRESS_DB_HOST: mysql:3306
-      WORDPRESS_DB_USER: springboot
-      WORDPRESS_DB_PASSWORD: springboot123
-      WORDPRESS_DB_NAME: learning_engine
-    ports:
-      - "8080:80"
-    volumes:
-      - wordpress-data:/var/www/html
-    networks:
-      - learning-network
+      MYSQL_URL: ${MYSQL_URL}
+      MYSQL_USERNAME: ${MYSQL_USERNAME}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      WORDPRESS_URL: ${WORDPRESS_URL:-http://wordpress:80}
+      WORDPRESS_USERNAME: ${WORDPRESS_USERNAME}
+      WORDPRESS_PASSWORD: ${WORDPRESS_PASSWORD}
+      WOO_CONSUMER_KEY: ${WOO_CONSUMER_KEY}
+      WOO_CONSUMER_SECRET: ${WOO_CONSUMER_SECRET}
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      wordpress:
+        condition: service_started
+    networks:
+      - learning-net
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-engine
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+    networks:
+      - learning-net
+
+  mysql-wordpress:
+    image: mysql:8.0
+    container_name: mysql-wordpress
+    environment:
+      MYSQL_ROOT_PASSWORD: ${WP_MYSQL_ROOT_PASSWORD:-wordpress_root}
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: ${WP_MYSQL_USER:-wordpress}
+      MYSQL_PASSWORD: ${WP_MYSQL_PASSWORD:-wordpress}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-wp-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${WP_MYSQL_ROOT_PASSWORD:-wordpress_root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+    networks:
+      - learning-net
+
+  wordpress:
+    build:
+      context: ./docker/wordpress
+      dockerfile: Dockerfile
+    container_name: wordpress
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: mysql-wordpress:3306
+      WORDPRESS_DB_USER: ${WP_MYSQL_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${WP_MYSQL_PASSWORD:-wordpress}
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_ENVIRONMENT_TYPE', 'local');
+    volumes:
+      - wordpress-data:/var/www/html
+      - ./docker/wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins
+    depends_on:
+      mysql-wordpress:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/wp-includes/version.php || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - learning-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - learning-net
 
 volumes:
   mysql-data:
-  redis-data:
+  mysql-wp-data:
   wordpress-data:
+  redis-data:
 
 networks:
-  learning-network:
+  learning-net:
     driver: bridge

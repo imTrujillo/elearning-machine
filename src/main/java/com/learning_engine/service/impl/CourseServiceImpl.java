@@ -10,10 +10,12 @@ import com.learning_engine.entity.Course;
 import com.learning_engine.mapper.CourseMapper;
 import com.learning_engine.repository.CategoryRepository;
 import com.learning_engine.repository.CourseRepository;
+import com.learning_engine.integration.WordpressRestUri;
 import com.learning_engine.service.CourseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +23,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -41,6 +44,9 @@ public class CourseServiceImpl implements CourseService {
 
     @Qualifier("wooWebClient")
     private final WebClient wooWebClient;
+
+    @Value("${wordpress.plain-rest:true}")
+    private boolean wordpressPlainRest;
 
     @Override
     @Cacheable(value = "courses", key = "'all_' + #pageable.pageNumber + '_' + #pageable.pageSize")
@@ -109,6 +115,23 @@ public class CourseServiceImpl implements CourseService {
         courseRepository.deleteById(id);
     }
 
+    private List<WooProductDto> fetchWooProducts() {
+        try {
+            return wooWebClient.get()
+                    .uri(WordpressRestUri.resolve("/wp-json/wc/v3/products?per_page=100", wordpressPlainRest))
+                    .retrieve()
+                    .bodyToFlux(WooProductDto.class)
+                    .collectList()
+                    .block();
+        } catch (WebClientResponseException.Unauthorized e) {
+            log.warn("WooCommerce REST no autorizado (revisa WOO_CONSUMER_KEY/SECRET en WP). Sincronizando sin precios WC.");
+            return List.of();
+        } catch (WebClientResponseException e) {
+            log.warn("WooCommerce REST error {}: {}", e.getStatusCode(), e.getMessage());
+            return List.of();
+        }
+    }
+
     @Scheduled(fixedRate = 300000)
     public void scheduledSync() {
         try {
@@ -123,21 +146,25 @@ public class CourseServiceImpl implements CourseService {
     @Transactional
     @CacheEvict(value = "courses", allEntries = true)
     public PagedResponse<CourseResponse> syncFromWordpress() {
-        List<WordpressPostDto> posts = wordpressWebClient.get()
-                .uri("/wp-json/wp/v2/posts?per_page=100&_embed")
-                .retrieve()
-                .bodyToFlux(WordpressPostDto.class)
-                .collectList()
-                .block();
+        List<WordpressPostDto> posts;
+        try {
+            posts = wordpressWebClient.get()
+                    .uri(WordpressRestUri.resolve("/wp-json/wp/v2/posts?per_page=100&_embed", wordpressPlainRest))
+                    .retrieve()
+                    .bodyToFlux(WordpressPostDto.class)
+                    .collectList()
+                    .block();
+        } catch (WebClientResponseException.Unauthorized e) {
+            throw new RuntimeException(
+                    "WordPress 401: Application Password incorrecta o revocada. "
+                            + "Crea una nueva en WP (Usuarios → Perfil → Contraseñas de aplicación) y actualiza WORDPRESS_PASSWORD, "
+                            + "o en local con entradas públicas usa WORDPRESS_AUTH_ENABLED=false.",
+                    e);
+        }
 
         if (posts == null || posts.isEmpty()) return PagedResponse.empty(); // ✅ not List.of()
 
-        List<WooProductDto> wooProducts = wooWebClient.get()
-                .uri("/wp-json/wc/v3/products?per_page=100")
-                .retrieve()
-                .bodyToFlux(WooProductDto.class)
-                .collectList()
-                .block();
+        List<WooProductDto> wooProducts = fetchWooProducts();
 
         Map<String, WooProductDto> wooByName = wooProducts == null ? Map.of()
                 : wooProducts.stream().collect(Collectors.toMap(
